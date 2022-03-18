@@ -1,5 +1,9 @@
 package vn.gpay.gsmart.core.api.timesheet_lunch;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -9,14 +13,12 @@ import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
 
+import org.apache.poi.util.IOUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import vn.gpay.gsmart.core.base.ResponseBase;
 import vn.gpay.gsmart.core.org.IOrgService;
@@ -42,6 +44,7 @@ import vn.gpay.gsmart.core.timesheet_shift_type_org.TimesheetShiftTypeOrg;
 import vn.gpay.gsmart.core.utils.Common;
 import vn.gpay.gsmart.core.utils.OrgType;
 import vn.gpay.gsmart.core.utils.ResponseMessage;
+import vn.gpay.gsmart.core.utils.RiceExcel;
 
 @RestController
 @RequestMapping("/api/v1/timesheetlunch")
@@ -1206,6 +1209,221 @@ public class TimeSheetLunchAPI {
 //		}
 //	}
 //
+
+	@PostMapping
+	@RequestMapping(value = "/exportGuestRice")
+	public ResponseEntity<ExcelResponse> downloadGuestRiceExcel(@RequestBody get_tonghopbaoan_request request, HttpServletRequest servletRequest) {
+		ExcelResponse response = new ExcelResponse();
+
+		List<ExcelRiceDTO> listOfData = new ArrayList<>();
+
+		String pattern = "dd/MM/yyyy";
+		SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
+
+		String filePattern = "ddMMyyyy";
+		SimpleDateFormat fileSDF = new SimpleDateFormat(filePattern);
+
+		Calendar calendar = Calendar.getInstance();
+
+		Long orgIdLink = request.orgid_link;
+		Date dateFrom = commonService.getBeginOfDate(request.date_from);
+		Date dateTo = commonService.getBeginOfDate(request.date_to);
+
+		String folderPath = servletRequest.getServletContext().getRealPath("report/Export/GuestRice/");
+		File uploadFolder = new File(folderPath);
+
+		if (!uploadFolder.exists()) {
+			boolean created = uploadFolder.mkdirs();
+		}
+
+		String fileName = "exportGuestRice" + fileSDF.format(dateFrom) + "_" + fileSDF.format(dateTo) + ".xlsx";
+		String excelFilePath = folderPath + fileName;
+
+		while (dateFrom.getTime() <= dateTo.getTime()) {
+			List<TimeSheetLunchKhach> listTimeSheetLunchGuest = lunchkhachService.getby_ngay_org(dateFrom, orgIdLink);
+
+			int numberOfMeals = 0;
+			for (TimeSheetLunchKhach data : listTimeSheetLunchGuest) numberOfMeals += data.getAmount();
+
+			listOfData.add(new ExcelRiceDTO(simpleDateFormat.format(dateFrom), numberOfMeals));
+
+			calendar.setTime(dateFrom);
+			calendar.add(Calendar.DATE, 1);
+			dateFrom = calendar.getTime();
+		}
+
+		try {
+			File excelFile = RiceExcel.createGuestRice(excelFilePath, listOfData);
+			InputStream dataInputStream = new FileInputStream(excelFile);
+
+			response.setData(IOUtils.toByteArray(dataInputStream));
+			response.setRespcode(ResponseMessage.KEY_RC_SUCCESS);
+			response.setMessage(ResponseMessage.getMessage(ResponseMessage.KEY_RC_SUCCESS));
+
+			dataInputStream.close();
+//			boolean deleted = excelFile.delete();
+
+			return ResponseEntity.ok(response);
+		} catch (Exception exception) {
+			response.setData(null);
+			response.setRespcode(ResponseMessage.KEY_RC_APPROVE_FAIL);
+			response.setMessage(ResponseMessage.getMessage(ResponseMessage.KEY_RC_APPROVE_FAIL));
+			return ResponseEntity.badRequest().body(response);
+		}
+	}
+
+	private final List<Integer> listExtraRiceId = new ArrayList<>(){{
+		add(8); // Ca 5
+	}};
+
+	@PostMapping
+	@RequestMapping(value = "/exportRice")
+	public ResponseEntity<ExcelResponse> downloadRiceData(@RequestBody get_tonghopbaoan_request request, HttpServletRequest servletRequest) {
+		ExcelResponse response = new ExcelResponse();
+
+		List<ExcelRiceDTO> listOfData = new ArrayList<>();
+
+		String pattern = "dd/MM/yyyy";
+		SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
+
+		String filePattern = "ddMMyyyy";
+		SimpleDateFormat fileSDF = new SimpleDateFormat(filePattern);
+
+		Calendar calendar = Calendar.getInstance();
+
+		Long orgIdLink = request.orgid_link;
+		Date dateFrom = commonService.getBeginOfDate(request.date_from);
+		Date dateTo = commonService.getBeginOfDate(request.date_to);
+
+		String folderPath = servletRequest.getServletContext().getRealPath("report/Export/Rice/");
+		File uploadFolder = new File(folderPath);
+
+		if (!uploadFolder.exists()) {
+			boolean created = uploadFolder.mkdirs();
+		}
+
+		String fileName = "exportRice" + fileSDF.format(dateFrom) + "_" + fileSDF.format(dateTo) + ".xlsx";
+		String excelFilePath = folderPath + fileName;
+
+		List<Org> listOrg = orgService.getorgChildrenbyOrg(orgIdLink, new ArrayList<>());
+
+		while (dateFrom.getTime() <= dateTo.getTime()) {
+			int numberOfMeals = 0;
+
+			for (Org org : listOrg) {
+				List<TimeSheetLunch> listTimeSheetLunch = timeSheetLunchService.getForTimeSheetLunchByGrant(org.getId(), dateFrom);
+
+				// Remove all unconfirmed people and haven't lunch
+				listTimeSheetLunch.removeIf(p -> !p.getStatus().equals(1) || !p.isIslunch());
+
+				// Remove all extra rice
+				listExtraRiceId.forEach(id ->
+						listTimeSheetLunch.removeIf(p -> p.getShifttypeid_link().equals(id)));
+
+				numberOfMeals += listTimeSheetLunch.size();
+			}
+
+			listOfData.add(new ExcelRiceDTO(simpleDateFormat.format(dateFrom), numberOfMeals));
+
+			calendar.setTime(dateFrom);
+			calendar.add(Calendar.DATE, 1);
+			dateFrom = calendar.getTime();
+		}
+
+		try {
+			File excelFile = RiceExcel.createTotalRice(excelFilePath, listOfData);
+			InputStream dataInputStream = new FileInputStream(excelFile);
+
+			response.setData(IOUtils.toByteArray(dataInputStream));
+			response.setRespcode(ResponseMessage.KEY_RC_SUCCESS);
+			response.setMessage(ResponseMessage.getMessage(ResponseMessage.KEY_RC_SUCCESS));
+
+			dataInputStream.close();
+//			boolean deleted = excelFile.delete();
+
+			return ResponseEntity.ok(response);
+		} catch (Exception exception) {
+			response.setData(null);
+			response.setRespcode(ResponseMessage.KEY_RC_APPROVE_FAIL);
+			response.setMessage(ResponseMessage.getMessage(ResponseMessage.KEY_RC_APPROVE_FAIL));
+			return ResponseEntity.badRequest().body(response);
+		}
+	}
+
+	@PostMapping
+	@RequestMapping(value = "/exportExtraRice")
+	public ResponseEntity<ExcelResponse> downloadExtraRiceData(@RequestBody get_tonghopbaoan_request request, HttpServletRequest servletRequest) {
+		ExcelResponse response = new ExcelResponse();
+
+		List<ExcelRiceDTO> listOfData = new ArrayList<>();
+
+		String pattern = "dd/MM/yyyy";
+		SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
+
+		String filePattern = "ddMMyyyy";
+		SimpleDateFormat fileSDF = new SimpleDateFormat(filePattern);
+
+		Calendar calendar = Calendar.getInstance();
+
+		Long orgIdLink = request.orgid_link;
+		Date dateFrom = commonService.getBeginOfDate(request.date_from);
+		Date dateTo = commonService.getBeginOfDate(request.date_to);
+
+		String folderPath = servletRequest.getServletContext().getRealPath("report/Export/ExtraRice/");
+		File uploadFolder = new File(folderPath);
+
+		if (!uploadFolder.exists()) {
+			boolean created = uploadFolder.mkdirs();
+		}
+
+		String fileName = "exportGuestRice" + fileSDF.format(dateFrom) + "_" + fileSDF.format(dateTo) + ".xlsx";
+		String excelFilePath = folderPath + fileName;
+
+		List<Org> listOrg = orgService.getorgChildrenbyOrg(orgIdLink, new ArrayList<>());
+
+		while (dateFrom.getTime() <= dateTo.getTime()) {
+			int numberOfMeals = 0;
+
+			for (Org org : listOrg) {
+				List<TimeSheetLunch> listTimeSheetLunch = timeSheetLunchService.getForTimeSheetLunchByGrant(org.getId(), dateFrom);
+
+				// Remove all unconfirmed people and haven't lunch
+				listTimeSheetLunch.removeIf(p -> !p.getStatus().equals(1) || !p.isIslunch());
+
+				// Remove all not extra rice
+				listExtraRiceId.forEach(id ->
+						listTimeSheetLunch.removeIf(p -> !p.getShifttypeid_link().equals(id)));
+
+				numberOfMeals += listTimeSheetLunch.size();
+			}
+
+			listOfData.add(new ExcelRiceDTO(simpleDateFormat.format(dateFrom), numberOfMeals));
+
+			calendar.setTime(dateFrom);
+			calendar.add(Calendar.DATE, 1);
+			dateFrom = calendar.getTime();
+		}
+
+		try {
+			File excelFile = RiceExcel.createTotalExtraFile(excelFilePath, listOfData);
+			InputStream dataInputStream = new FileInputStream(excelFile);
+
+			response.setData(IOUtils.toByteArray(dataInputStream));
+			response.setRespcode(ResponseMessage.KEY_RC_SUCCESS);
+			response.setMessage(ResponseMessage.getMessage(ResponseMessage.KEY_RC_SUCCESS));
+
+			dataInputStream.close();
+//			boolean deleted = excelFile.delete();
+
+			return ResponseEntity.ok(response);
+		} catch (Exception exception) {
+			response.setData(null);
+			response.setRespcode(ResponseMessage.KEY_RC_APPROVE_FAIL);
+			response.setMessage(ResponseMessage.getMessage(ResponseMessage.KEY_RC_APPROVE_FAIL));
+			return ResponseEntity.badRequest().body(response);
+		}
+	}
+
 	@RequestMapping(value = "/updateStatus", method = RequestMethod.POST)
 	public ResponseEntity<ResponseBase> updateStatus(@RequestBody TimeSheetLunch_updateStatus_request entity,
 			HttpServletRequest request) {
