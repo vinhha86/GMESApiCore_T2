@@ -525,7 +525,7 @@ public class TimeSheetLunchAPI {
 					if (mapTmp.containsKey(timeSheetLunch.getPersonnelid_link())) {
 						TimeSheetLunchBinding temp = mapTmp.get(timeSheetLunch.getPersonnelid_link());
 
-						// lay gia tri id time sheet shift type va tieme sheet sifht type org
+						// lay gia tri id time sheet shift type va time sheet shift type org
 						List<TimesheetShiftTypeOrg> listTimesheetShiftTypeOrg = timesheetshifttypeOrgService.getByOrgid_link_and_shifttypeId(orgid_link, timeSheetLunch.getShifttypeid_link().longValue());
 						if(listTimesheetShiftTypeOrg.size() > 0) {
 							TimesheetShiftTypeOrg timesheetShiftTypeOrg = listTimesheetShiftTypeOrg.get(0);
@@ -564,53 +564,128 @@ public class TimeSheetLunchAPI {
 					org_id = org.getParentid_link();
 				}
 				
+				//
+				for (GpayUserOrg userorg : list_userorg) {
+					list_org_id.add(userorg.getOrgid_link());
+				}
+				if (!list_org_id.contains(user.getOrgid_link())) {
+					list_org_id.add(user.getOrgid_link());
+				}
+				if (entity.orgid_link != orgrootid_link) {
+					// nếu quản lý nhiều tài khoan
+					if (list_org_id.size() > 1) {
+//						listPersonnel = personnelService.getby_org(orgid_link, orgrootid_link);
+						listPersonnel = personnelService.getTongLaoDongByDate(orgid_link, dateBegin, dateEnd);
+					} else {
+						// nếu có đơn vị con cụ thể
+						if (user.getOrg_grant_id_link() != null) {
+							lst_org = orgService.getOrgById(user.getOrg_grant_id_link());
+							if (lst_org.size() != 0) {
+//								listPersonnel = personnelService.getby_org(user.getOrg_grant_id_link(), orgrootid_link);
+								listPersonnel = personnelService.getTongLaoDongByDate(user.getOrg_grant_id_link(),
+										dateBegin, dateEnd);
+							}
+						} else {
+//							listPersonnel = personnelService.getby_org(orgid_link, orgrootid_link);
+							listPersonnel = personnelService.getTongLaoDongByDate(orgid_link, dateBegin, dateEnd);
+						}
+					}
+				}
+
+				
 				list = new ArrayList<TimeSheetLunchBinding>();
 				List<TimeSheetLunch> listTimeSheetLunch = timeSheetLunchService.getForTimeSheetLunchBeforeDate(orgid_link, date);
+				Map<Long, TimeSheetLunchBinding> mapTmp = new HashMap<>();
+				
+				for (Personel personnel : listPersonnel) { // add personnel to map
+					TimeSheetLunchBinding temp = new TimeSheetLunchBinding();
+					temp.setPersonnelid_link(personnel.getId());
+					temp.setPersonnelCode(personnel.getCode());
+					temp.setPersonnelFullname(personnel.getFullname());
+					temp.setWorkingdate(date);
+					temp.setRegister_code(personnel.getRegister_code());
+					temp.setOrgid_link(personnel.getOrgid_link());
+					temp.setOrgmanagerid_link(personnel.getOrgmanagerid_link());
+					temp.setTimesheet_shift_id_list(new ArrayList<Long>());
+					mapTmp.put(personnel.getId(), temp);
+				}
+				
+				System.out.println(listTimeSheetLunch.size());
+				
+				for (TimeSheetLunch timeSheetLunch : listTimeSheetLunch) {
+					if (mapTmp.containsKey(timeSheetLunch.getPersonnelid_link())) {
+						TimeSheetLunchBinding temp = mapTmp.get(timeSheetLunch.getPersonnelid_link());
 
-				for(TimeSheetLunch ts_lunch : listTimeSheetLunch) {
-					Personel person = personnelService.findOne(ts_lunch.getPersonnelid_link());
-					
-					if (null != person) {
-						TimeSheetLunchBinding binding = new TimeSheetLunchBinding();
-						binding.setOrgid_link(ts_lunch.getOrgid_link());
-						binding.setOrgmanagerid_link(ts_lunch.getOrgmanagerid_link());
-						binding.setPersonnelCode(person.getCode());
-						binding.setPersonnelFullname(person.getFullname());
-						binding.setPersonnelid_link(ts_lunch.getPersonnelid_link());
-						binding.setRegister_code(person.getRegister_code());
-						binding.setStatus(ts_lunch.getStatus());
-						binding.setWorkingdate(ts_lunch.getWorkingdate());
-						
 						// lay gia tri id time sheet shift type va tieme sheet sifht type org
-						List<TimesheetShiftTypeOrg> listTimesheetShiftTypeOrg = timesheetshifttypeOrgService.getByOrgid_link_and_shifttypeId
-								(org_id, ts_lunch.getShifttypeid_link().longValue());
-						
+						List<TimesheetShiftTypeOrg> listTimesheetShiftTypeOrg = timesheetshifttypeOrgService.getByOrgid_link_and_shifttypeId(org_id, timeSheetLunch.getShifttypeid_link().longValue());
 						if(listTimesheetShiftTypeOrg.size() > 0) {
 							TimesheetShiftTypeOrg timesheetShiftTypeOrg = listTimesheetShiftTypeOrg.get(0);
-							binding.setTimesheet_shift_id(timesheetShiftTypeOrg.getId());
-							if(binding.getTimesheet_shift_id_list() == null) {
-								binding.setTimesheet_shift_id_list(new ArrayList<Long>());
-							}
-							binding.getTimesheet_shift_id_list().add(timesheetShiftTypeOrg.getId());
+							temp.setTimesheet_shift_id(timesheetShiftTypeOrg.getId());
+							temp.getTimesheet_shift_id_list().add(timesheetShiftTypeOrg.getId());
 						}
-						binding.setTimesheet_shift_type_id_link(ts_lunch.getShifttypeid_link().longValue());
+						temp.setTimesheet_shift_type_id_link(timeSheetLunch.getShifttypeid_link().longValue());
 						
 						// lay gia tri id cua ca khong an trua, set cho binding
-						if(ts_lunch.getIs_nolunch()) {
-							Long shifttypeid_link = ts_lunch.getShifttypeid_link().longValue();
+						if(timeSheetLunch.getIs_nolunch()) {
+							Long shifttypeid_link = timeSheetLunch.getShifttypeid_link().longValue();
 							List<TimesheetShiftTypeOrg> timesheetShiftTypeOrg_list = timesheetshifttypeOrgService.getByOrgid_link_and_shifttypeId(
 									orgid_link, shifttypeid_link);
 							if(timesheetShiftTypeOrg_list.size() > 0) {
 								TimesheetShiftTypeOrg timesheetShiftTypeOrg = timesheetShiftTypeOrg_list.get(0);
-								binding.setNolunch_shift_idlink(timesheetShiftTypeOrg.getId());
+								temp.setNolunch_shift_idlink(timesheetShiftTypeOrg.getId());
 							}
 						}
 						
-						list.add(binding);
-					} else {
-						System.out.println("Person not found: " + ts_lunch.getPersonnelid_link());
+						temp.setStatus(timeSheetLunch.getStatus());
+						mapTmp.put(timeSheetLunch.getPersonnelid_link(), temp);
 					}
 				}
+				list = new ArrayList<TimeSheetLunchBinding>(mapTmp.values());
+
+//				for(TimeSheetLunch ts_lunch : listTimeSheetLunch) {
+//					Personel person = personnelService.findOne(ts_lunch.getPersonnelid_link());
+//					
+//					if (null != person) {
+//						TimeSheetLunchBinding binding = new TimeSheetLunchBinding();
+//						binding.setOrgid_link(ts_lunch.getOrgid_link());
+//						binding.setOrgmanagerid_link(ts_lunch.getOrgmanagerid_link());
+//						binding.setPersonnelCode(person.getCode());
+//						binding.setPersonnelFullname(person.getFullname());
+//						binding.setPersonnelid_link(ts_lunch.getPersonnelid_link());
+//						binding.setRegister_code(person.getRegister_code());
+//						binding.setStatus(ts_lunch.getStatus());
+//						binding.setWorkingdate(ts_lunch.getWorkingdate());
+//						
+//						// lay gia tri id time sheet shift type va tieme sheet sifht type org
+//						List<TimesheetShiftTypeOrg> listTimesheetShiftTypeOrg = timesheetshifttypeOrgService.getByOrgid_link_and_shifttypeId
+//								(org_id, ts_lunch.getShifttypeid_link().longValue());
+//						
+//						if(listTimesheetShiftTypeOrg.size() > 0) {
+//							TimesheetShiftTypeOrg timesheetShiftTypeOrg = listTimesheetShiftTypeOrg.get(0);
+//							binding.setTimesheet_shift_id(timesheetShiftTypeOrg.getId());
+//							if(binding.getTimesheet_shift_id_list() == null) {
+//								binding.setTimesheet_shift_id_list(new ArrayList<Long>());
+//							}
+//							binding.getTimesheet_shift_id_list().add(timesheetShiftTypeOrg.getId());
+//						}
+//						binding.setTimesheet_shift_type_id_link(ts_lunch.getShifttypeid_link().longValue());
+//						
+//						// lay gia tri id cua ca khong an trua, set cho binding
+//						if(ts_lunch.getIs_nolunch()) {
+//							Long shifttypeid_link = ts_lunch.getShifttypeid_link().longValue();
+//							List<TimesheetShiftTypeOrg> timesheetShiftTypeOrg_list = timesheetshifttypeOrgService.getByOrgid_link_and_shifttypeId(
+//									orgid_link, shifttypeid_link);
+//							if(timesheetShiftTypeOrg_list.size() > 0) {
+//								TimesheetShiftTypeOrg timesheetShiftTypeOrg = timesheetShiftTypeOrg_list.get(0);
+//								binding.setNolunch_shift_idlink(timesheetShiftTypeOrg.getId());
+//							}
+//						}
+//						
+//						list.add(binding);
+//					} else {
+//						System.out.println("Person not found: " + ts_lunch.getPersonnelid_link());
+//					}
+//				}
 			}
 			response.data = list;
 			response.setRespcode(ResponseMessage.KEY_RC_SUCCESS);
@@ -775,17 +850,12 @@ public class TimeSheetLunchAPI {
 			org_them.setId((long) -1);
 
 			list_org.add(org_them);
+			
 			for (Org org : list_org) {
 				if (org.getOrgtypeid_link().equals(OrgType.ORG_TYPE_DONVIKHACH)) {
 					List<TimeSheetLunchKhach> listTimeSheetLunchKhach = lunchkhachService.getby_nhieungay_org(date_from, date_to,
 							orgid_link);
-					
-//					for(TimeSheetLunchKhach timeSheetLunchKhach : listTimeSheetLunchKhach) {
-//						if(timeSheetLunchKhach.getAmount()) {
-//							
-//						}
-//					}
-					
+
 					listTimeSheetLunchKhach.removeIf(c -> c.getAmount() == null || c.getAmount() == 0 );
 
 					List<TimeSheetLunchKhach> listTimeSheetLunchKhach_ca1 = new ArrayList<>(listTimeSheetLunchKhach);
@@ -880,68 +950,158 @@ public class TimeSheetLunchAPI {
 
 					TongHopBaoAn tonghop = new TongHopBaoAn();
 					tonghop.setOrg_name(org.getName());
-					tonghop.setCa1(listTimeSheetLunchKhach_ca1.size() == 0 ? 0
-							: listTimeSheetLunchKhach_ca1.get(0).getAmount());
-					tonghop.setCa2(listTimeSheetLunchKhach_ca2.size() == 0 ? 0
-							: listTimeSheetLunchKhach_ca2.get(0).getAmount());
-					tonghop.setCa3(listTimeSheetLunchKhach_ca3.size() == 0 ? 0
-							: listTimeSheetLunchKhach_ca3.get(0).getAmount());
-					tonghop.setCa4(listTimeSheetLunchKhach_ca4.size() == 0 ? 0
-							: listTimeSheetLunchKhach_ca4.get(0).getAmount());
-					tonghop.setCa5(listTimeSheetLunchKhach_ca5.size() == 0 ? 0
-							: listTimeSheetLunchKhach_ca5.get(0).getAmount());
-					tonghop.setCa6(listTimeSheetLunchKhach_ca6.size() == 0 ? 0
-							: listTimeSheetLunchKhach_ca6.get(0).getAmount());
-					tonghop.setCa7(listTimeSheetLunchKhach_ca7.size() == 0 ? 0
-							: listTimeSheetLunchKhach_ca7.get(0).getAmount());
-					tonghop.setCa8(listTimeSheetLunchKhach_ca8.size() == 0 ? 0
-							: listTimeSheetLunchKhach_ca8.get(0).getAmount());
-					tonghop.setCa9(listTimeSheetLunchKhach_ca9.size() == 0 ? 0
-							: listTimeSheetLunchKhach_ca9.get(0).getAmount());
-					tonghop.setCa10(listTimeSheetLunchKhach_ca10.size() == 0 ? 0
-							: listTimeSheetLunchKhach_ca10.get(0).getAmount());
-					tonghop.setCa11(listTimeSheetLunchKhach_ca11.size() == 0 ? 0
-							: listTimeSheetLunchKhach_ca11.get(0).getAmount());
-					tonghop.setCa12(listTimeSheetLunchKhach_ca12.size() == 0 ? 0
-							: listTimeSheetLunchKhach_ca12.get(0).getAmount());
-					tonghop.setCa13(listTimeSheetLunchKhach_ca13.size() == 0 ? 0
-							: listTimeSheetLunchKhach_ca13.get(0).getAmount());
-					tonghop.setCa14(listTimeSheetLunchKhach_ca14.size() == 0 ? 0
-							: listTimeSheetLunchKhach_ca14.get(0).getAmount());
-					tonghop.setCa15(listTimeSheetLunchKhach_ca15.size() == 0 ? 0
-							: listTimeSheetLunchKhach_ca15.get(0).getAmount());
-					tonghop.setCa16(listTimeSheetLunchKhach_ca16.size() == 0 ? 0
-							: listTimeSheetLunchKhach_ca16.get(0).getAmount());
-					tonghop.setCa17(listTimeSheetLunchKhach_ca17.size() == 0 ? 0
-							: listTimeSheetLunchKhach_ca17.get(0).getAmount());
-					tonghop.setCa18(listTimeSheetLunchKhach_ca18.size() == 0 ? 0
-							: listTimeSheetLunchKhach_ca18.get(0).getAmount());
-					tonghop.setCa19(listTimeSheetLunchKhach_ca19.size() == 0 ? 0
-							: listTimeSheetLunchKhach_ca19.get(0).getAmount());
-					tonghop.setCa20(listTimeSheetLunchKhach_ca20.size() == 0 ? 0
-							: listTimeSheetLunchKhach_ca20.get(0).getAmount());
-					tonghop.setCa21(listTimeSheetLunchKhach_ca21.size() == 0 ? 0
-							: listTimeSheetLunchKhach_ca21.get(0).getAmount());
-					tonghop.setCa22(listTimeSheetLunchKhach_ca22.size() == 0 ? 0
-							: listTimeSheetLunchKhach_ca22.get(0).getAmount());
-					tonghop.setCa23(listTimeSheetLunchKhach_ca23.size() == 0 ? 0
-							: listTimeSheetLunchKhach_ca23.get(0).getAmount());
-					tonghop.setCa24(listTimeSheetLunchKhach_ca24.size() == 0 ? 0
-							: listTimeSheetLunchKhach_ca24.get(0).getAmount());
-					tonghop.setCa25(listTimeSheetLunchKhach_ca25.size() == 0 ? 0
-							: listTimeSheetLunchKhach_ca25.get(0).getAmount());
-					tonghop.setCa26(listTimeSheetLunchKhach_ca26.size() == 0 ? 0
-							: listTimeSheetLunchKhach_ca26.get(0).getAmount());
-					tonghop.setCa27(listTimeSheetLunchKhach_ca27.size() == 0 ? 0
-							: listTimeSheetLunchKhach_ca27.get(0).getAmount());
-					tonghop.setCa28(listTimeSheetLunchKhach_ca28.size() == 0 ? 0
-							: listTimeSheetLunchKhach_ca28.get(0).getAmount());
-					tonghop.setCa29(listTimeSheetLunchKhach_ca29.size() == 0 ? 0
-							: listTimeSheetLunchKhach_ca29.get(0).getAmount());
-					tonghop.setCa30(listTimeSheetLunchKhach_ca30.size() == 0 ? 0
-							: listTimeSheetLunchKhach_ca30.get(0).getAmount());
+					
+					Integer amount = 0;
+					for(TimeSheetLunchKhach timeSheetLunchKhach : listTimeSheetLunchKhach_ca1) {
+						amount += timeSheetLunchKhach.getAmount() == null ? 0 : timeSheetLunchKhach.getAmount();
+					}
+					tonghop.setCa1(amount);
+					amount = 0;
+					for(TimeSheetLunchKhach timeSheetLunchKhach : listTimeSheetLunchKhach_ca2) {
+						amount += timeSheetLunchKhach.getAmount() == null ? 0 : timeSheetLunchKhach.getAmount();
+					}
+					tonghop.setCa2(amount);
+					amount = 0;
+					for(TimeSheetLunchKhach timeSheetLunchKhach : listTimeSheetLunchKhach_ca3) {
+						amount += timeSheetLunchKhach.getAmount() == null ? 0 : timeSheetLunchKhach.getAmount();
+					}
+					tonghop.setCa3(amount);
+					amount = 0;
+					for(TimeSheetLunchKhach timeSheetLunchKhach : listTimeSheetLunchKhach_ca4) {
+						amount += timeSheetLunchKhach.getAmount() == null ? 0 : timeSheetLunchKhach.getAmount();
+					}
+					tonghop.setCa4(amount);
+					amount = 0;
+					for(TimeSheetLunchKhach timeSheetLunchKhach : listTimeSheetLunchKhach_ca5) {
+						amount += timeSheetLunchKhach.getAmount() == null ? 0 : timeSheetLunchKhach.getAmount();
+					}
+					tonghop.setCa5(amount);
+					amount = 0;
+					for(TimeSheetLunchKhach timeSheetLunchKhach : listTimeSheetLunchKhach_ca6) {
+						amount += timeSheetLunchKhach.getAmount() == null ? 0 : timeSheetLunchKhach.getAmount();
+					}
+					tonghop.setCa6(amount);
+					amount = 0;
+					for(TimeSheetLunchKhach timeSheetLunchKhach : listTimeSheetLunchKhach_ca7) {
+						amount += timeSheetLunchKhach.getAmount() == null ? 0 : timeSheetLunchKhach.getAmount();
+					}
+					tonghop.setCa7(amount);
+					amount = 0;
+					for(TimeSheetLunchKhach timeSheetLunchKhach : listTimeSheetLunchKhach_ca8) {
+						amount += timeSheetLunchKhach.getAmount() == null ? 0 : timeSheetLunchKhach.getAmount();
+					}
+					tonghop.setCa8(amount);
+					amount = 0;
+					for(TimeSheetLunchKhach timeSheetLunchKhach : listTimeSheetLunchKhach_ca9) {
+						amount += timeSheetLunchKhach.getAmount() == null ? 0 : timeSheetLunchKhach.getAmount();
+					}
+					tonghop.setCa9(amount);
+					amount = 0;
+					for(TimeSheetLunchKhach timeSheetLunchKhach : listTimeSheetLunchKhach_ca10) {
+						amount += timeSheetLunchKhach.getAmount() == null ? 0 : timeSheetLunchKhach.getAmount();
+					}
+					tonghop.setCa10(amount);
+					amount = 0;
+					for(TimeSheetLunchKhach timeSheetLunchKhach : listTimeSheetLunchKhach_ca11) {
+						amount += timeSheetLunchKhach.getAmount() == null ? 0 : timeSheetLunchKhach.getAmount();
+					}
+					tonghop.setCa11(amount);
+					amount = 0;
+					for(TimeSheetLunchKhach timeSheetLunchKhach : listTimeSheetLunchKhach_ca12) {
+						amount += timeSheetLunchKhach.getAmount() == null ? 0 : timeSheetLunchKhach.getAmount();
+					}
+					tonghop.setCa12(amount);
+					amount = 0;
+					for(TimeSheetLunchKhach timeSheetLunchKhach : listTimeSheetLunchKhach_ca13) {
+						amount += timeSheetLunchKhach.getAmount() == null ? 0 : timeSheetLunchKhach.getAmount();
+					}
+					tonghop.setCa13(amount);
+					amount = 0;
+					for(TimeSheetLunchKhach timeSheetLunchKhach : listTimeSheetLunchKhach_ca14) {
+						amount += timeSheetLunchKhach.getAmount() == null ? 0 : timeSheetLunchKhach.getAmount();
+					}
+					tonghop.setCa14(amount);
+					amount = 0;
+					for(TimeSheetLunchKhach timeSheetLunchKhach : listTimeSheetLunchKhach_ca15) {
+						amount += timeSheetLunchKhach.getAmount() == null ? 0 : timeSheetLunchKhach.getAmount();
+					}
+					tonghop.setCa15(amount);
+					amount = 0;
+					for(TimeSheetLunchKhach timeSheetLunchKhach : listTimeSheetLunchKhach_ca16) {
+						amount += timeSheetLunchKhach.getAmount() == null ? 0 : timeSheetLunchKhach.getAmount();
+					}
+					tonghop.setCa16(amount);
+					amount = 0;
+					for(TimeSheetLunchKhach timeSheetLunchKhach : listTimeSheetLunchKhach_ca17) {
+						amount += timeSheetLunchKhach.getAmount() == null ? 0 : timeSheetLunchKhach.getAmount();
+					}
+					tonghop.setCa17(amount);
+					amount = 0;
+					for(TimeSheetLunchKhach timeSheetLunchKhach : listTimeSheetLunchKhach_ca18) {
+						amount += timeSheetLunchKhach.getAmount() == null ? 0 : timeSheetLunchKhach.getAmount();
+					}
+					tonghop.setCa18(amount);
+					amount = 0;
+					for(TimeSheetLunchKhach timeSheetLunchKhach : listTimeSheetLunchKhach_ca19) {
+						amount += timeSheetLunchKhach.getAmount() == null ? 0 : timeSheetLunchKhach.getAmount();
+					}
+					tonghop.setCa19(amount);
+					amount = 0;
+					for(TimeSheetLunchKhach timeSheetLunchKhach : listTimeSheetLunchKhach_ca20) {
+						amount += timeSheetLunchKhach.getAmount() == null ? 0 : timeSheetLunchKhach.getAmount();
+					}
+					tonghop.setCa20(amount);
+					amount = 0;
+					for(TimeSheetLunchKhach timeSheetLunchKhach : listTimeSheetLunchKhach_ca21) {
+						amount += timeSheetLunchKhach.getAmount() == null ? 0 : timeSheetLunchKhach.getAmount();
+					}
+					tonghop.setCa21(amount);
+					amount = 0;
+					for(TimeSheetLunchKhach timeSheetLunchKhach : listTimeSheetLunchKhach_ca22) {
+						amount += timeSheetLunchKhach.getAmount() == null ? 0 : timeSheetLunchKhach.getAmount();
+					}
+					tonghop.setCa22(amount);
+					amount = 0;
+					for(TimeSheetLunchKhach timeSheetLunchKhach : listTimeSheetLunchKhach_ca23) {
+						amount += timeSheetLunchKhach.getAmount() == null ? 0 : timeSheetLunchKhach.getAmount();
+					}
+					tonghop.setCa23(amount);
+					amount = 0;
+					for(TimeSheetLunchKhach timeSheetLunchKhach : listTimeSheetLunchKhach_ca24) {
+						amount += timeSheetLunchKhach.getAmount() == null ? 0 : timeSheetLunchKhach.getAmount();
+					}
+					tonghop.setCa24(amount);
+					amount = 0;
+					for(TimeSheetLunchKhach timeSheetLunchKhach : listTimeSheetLunchKhach_ca25) {
+						amount += timeSheetLunchKhach.getAmount() == null ? 0 : timeSheetLunchKhach.getAmount();
+					}
+					tonghop.setCa25(amount);
+					amount = 0;
+					for(TimeSheetLunchKhach timeSheetLunchKhach : listTimeSheetLunchKhach_ca26) {
+						amount += timeSheetLunchKhach.getAmount() == null ? 0 : timeSheetLunchKhach.getAmount();
+					}
+					tonghop.setCa26(amount);
+					amount = 0;
+					for(TimeSheetLunchKhach timeSheetLunchKhach : listTimeSheetLunchKhach_ca27) {
+						amount += timeSheetLunchKhach.getAmount() == null ? 0 : timeSheetLunchKhach.getAmount();
+					}
+					tonghop.setCa27(amount);
+					amount = 0;
+					for(TimeSheetLunchKhach timeSheetLunchKhach : listTimeSheetLunchKhach_ca28) {
+						amount += timeSheetLunchKhach.getAmount() == null ? 0 : timeSheetLunchKhach.getAmount();
+					}
+					tonghop.setCa28(amount);
+					amount = 0;
+					for(TimeSheetLunchKhach timeSheetLunchKhach : listTimeSheetLunchKhach_ca29) {
+						amount += timeSheetLunchKhach.getAmount() == null ? 0 : timeSheetLunchKhach.getAmount();
+					}
+					tonghop.setCa29(amount);
+					amount = 0;
+					for(TimeSheetLunchKhach timeSheetLunchKhach : listTimeSheetLunchKhach_ca30) {
+						amount += timeSheetLunchKhach.getAmount() == null ? 0 : timeSheetLunchKhach.getAmount();
+					}
+					tonghop.setCa30(amount);
 					tonghop.setOrgtypeid_link(org.getOrgtypeid_link());
-
 					list.add(tonghop);
 
 				} else if (org.getOrgtypeid_link().equals(999)) {
