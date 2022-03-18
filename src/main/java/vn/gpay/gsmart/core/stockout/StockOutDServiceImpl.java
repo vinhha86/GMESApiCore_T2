@@ -1,0 +1,19 @@
+package vn.gpay.gsmart.core.stockout;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Service;
+
+import vn.gpay.gsmart.core.base.AbstractService;
+@Service
+public class StockOutDServiceImpl extends AbstractService<StockOutD> implements IStockOutDService{
+
+	@Autowired
+	StockOutDRepository repository; 
+	@Override
+	protected JpaRepository<StockOutD, Long> getRepository() {
+		// TODO Auto-generated method stub
+		return repository;
+	}
+
+}
