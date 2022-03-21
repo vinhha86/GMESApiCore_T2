@@ -4,6 +4,15 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
+import java.text.SimpleDateFormat;
+import java.io.File;
+import org.apache.poi.util.IOUtils;
+import java.io.FileInputStream;
+import java.io.InputStream;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import vn.gpay.gsmart.core.api.timesheet_absence.BaoCaoNS_Excel;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -29,9 +38,11 @@ import vn.gpay.gsmart.core.timesheet_absence.ITimesheetAbsenceTypeService;
 import vn.gpay.gsmart.core.timesheet_absence.TimesheetAbsence;
 import vn.gpay.gsmart.core.timesheet_absence.TimesheetAbsenceType;
 import vn.gpay.gsmart.core.timesheet_absence.TimesheetAbsence_Binding;
+import vn.gpay.gsmart.core.timesheet_absence.TimesheetAbsenceService;
 import vn.gpay.gsmart.core.utils.GPAYDateFormat;
 import vn.gpay.gsmart.core.utils.OrgType;
 import vn.gpay.gsmart.core.utils.ResponseMessage;
+import vn.gpay.gsmart.core.utils.RiceExcel;
 
 @RestController
 @RequestMapping("/api/v1/timesheetabsence")
@@ -117,7 +128,7 @@ public class TimesheetAbsenceAPI {
 
 	@RequestMapping(value = "/getbyorg_and_date", method = RequestMethod.POST)
 	public ResponseEntity<TimeSheetAbsence_response> GetByOrgAndDate(@RequestBody getByOrgAndDate_request entity,
-			HttpServletRequest request) {
+																	 HttpServletRequest request) {
 		TimeSheetAbsence_response response = new TimeSheetAbsence_response();
 		try {
 			long orgid_link = entity.orgid_link;
@@ -157,7 +168,7 @@ public class TimesheetAbsenceAPI {
 
 	@RequestMapping(value = "/getOne", method = RequestMethod.POST)
 	public ResponseEntity<TimeSheetAbsence_getOne_response> getOne(@RequestBody TimeSheetAbsence_getOne_request entity,
-			HttpServletRequest request) {
+																   HttpServletRequest request) {
 		TimeSheetAbsence_getOne_response response = new TimeSheetAbsence_getOne_response();
 		try {
 
@@ -227,7 +238,7 @@ public class TimesheetAbsenceAPI {
 
 	@RequestMapping(value = "/save", method = RequestMethod.POST)
 	public ResponseEntity<TimeSheetAbsenceType_response> save(@RequestBody TimeSheetAbsence_save_request entity,
-			HttpServletRequest request) {
+															  HttpServletRequest request) {
 		TimeSheetAbsenceType_response response = new TimeSheetAbsenceType_response();
 		try {
 			GpayUser user = (GpayUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -308,7 +319,7 @@ public class TimesheetAbsenceAPI {
 
 	@RequestMapping(value = "/confirm", method = RequestMethod.POST)
 	public ResponseEntity<ResponseBase> confirm(@RequestBody TimeSheetAbsence_getOne_request entity,
-			HttpServletRequest request) {
+												HttpServletRequest request) {
 		ResponseBase response = new ResponseBase();
 		try {
 			GpayUser user = (GpayUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -331,7 +342,7 @@ public class TimesheetAbsenceAPI {
 
 	@RequestMapping(value = "/delete", method = RequestMethod.POST)
 	public ResponseEntity<ResponseBase> delete(@RequestBody TimeSheetAbsence_getOne_request entity,
-			HttpServletRequest request) {
+											   HttpServletRequest request) {
 		ResponseBase response = new ResponseBase();
 		try {
 //			GpayUser user = (GpayUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -352,7 +363,7 @@ public class TimesheetAbsenceAPI {
 	// them loai nghi viec
 	@RequestMapping(value = "/add_timesheetabsencetype", method = RequestMethod.POST)
 	public ResponseEntity<ResponseBase> add_TimeSheetAbsenceType(@RequestBody TimeSheetAbsenceType_add_request entity,
-			HttpServletRequest request) {
+																 HttpServletRequest request) {
 		ResponseBase response = new ResponseBase();
 		try {
 //			GpayUser user = (GpayUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -386,6 +397,7 @@ public class TimesheetAbsenceAPI {
 			return new ResponseEntity<ResponseBase>(HttpStatus.OK);
 		}
 	}
+
 	@RequestMapping(value = "/getForBaoCaoNS", method = RequestMethod.POST)
 	public ResponseEntity<TimesheetAbsence_BaoCaoNS_repsonse> getForBaoCaoNS(
 			@RequestBody getByOrgAndDate_request entity, HttpServletRequest request) {
@@ -395,7 +407,7 @@ public class TimesheetAbsenceAPI {
 			Date date = entity.date;
 			Date dateBegin = GPAYDateFormat.atStartOfDay(date);
 			Date dateEnd = GPAYDateFormat.atEndOfDay(date);
-			
+
 			Calendar cal = Calendar.getInstance();
 			cal.setTime(dateBegin);
 			cal.set(Calendar.HOUR_OF_DAY, 0);
@@ -409,9 +421,9 @@ public class TimesheetAbsenceAPI {
 			cal.set(Calendar.SECOND, 0);
 			cal.set(Calendar.MILLISECOND, 0);
 			dateEnd = cal.getTime();
-			
+
 			List<TimesheetAbsence_Binding> result = new ArrayList<TimesheetAbsence_Binding>();
-			
+
 			//  lấy danh sách đơn vị
 			List<Org> org_list = new ArrayList<Org>();
 			if (user.getOrgid_link().equals(user.getRootorgid_link())) {
@@ -430,14 +442,14 @@ public class TimesheetAbsenceAPI {
 					org_list.add(orgService.findOne(id));
 				}
 			}
-			
+
 			// Lấy thông tin sl nghỉ cho từng đơn vị
-			for(Org org : org_list) {
+			for (Org org : org_list) {
 				TimesheetAbsence_Binding newTimesheetAbsence_Binding = new TimesheetAbsence_Binding();
 				newTimesheetAbsence_Binding.setOrgid_link(org.getId());
 				newTimesheetAbsence_Binding.setOrgName(org.getName());
 				newTimesheetAbsence_Binding.setOrgCode(org.getCode());
-				
+
 				// timesheetAbsenceService
 				// (StartA <= EndB) and (EndA >= StartB) -> overlap
 				Long orgmanagerid_link = org.getId();
@@ -445,12 +457,12 @@ public class TimesheetAbsenceAPI {
 				List<Personel> personel_list = personnelService.getTongLaoDongByDate(orgmanagerid_link, dateBegin, dateEnd);
 				Integer tongLaoDong = personel_list.size();
 				newTimesheetAbsence_Binding.setTongLaoDong(tongLaoDong);
-				
+
 				// nghiPhep (type 5)
-				List<TimesheetAbsence> timesheetAbsence_list = timesheetAbsenceService.getNghiPhepTheoNgay(orgmanagerid_link, dateBegin, dateEnd, (long)5);
+				List<TimesheetAbsence> timesheetAbsence_list = timesheetAbsenceService.getNghiPhepTheoNgay(orgmanagerid_link, dateBegin, dateEnd, (long) 5);
 				Integer nghiPhep = timesheetAbsence_list.size();
 				newTimesheetAbsence_Binding.setNghiPhep(nghiPhep);
-				
+
 				// nghi1phan2 
 				// trong khoảng 7h30 đến 1h30 hoặc sau 1h30 đến hết 17h
 				Calendar calendar = Calendar.getInstance();
@@ -482,21 +494,21 @@ public class TimesheetAbsenceAPI {
 				calendar.set(Calendar.SECOND, 0);
 				calendar.set(Calendar.MILLISECOND, 0);
 				caTo2 = calendar.getTime();
-				
+
 				timesheetAbsence_list = timesheetAbsenceService.getNghi1Phan2TheoNgay(orgmanagerid_link, caFrom1, caTo1, caFrom2, caTo2);
 				Integer nghi1phan2 = timesheetAbsence_list.size();
 				newTimesheetAbsence_Binding.setNghi1phan2(nghi1phan2);
-				
+
 				// nghiKhongPhep (type 14)
-				timesheetAbsence_list = timesheetAbsenceService.getNghiPhepTheoNgay(orgmanagerid_link, dateBegin, dateEnd, (long)14);
+				timesheetAbsence_list = timesheetAbsenceService.getNghiPhepTheoNgay(orgmanagerid_link, dateBegin, dateEnd, (long) 14);
 				Integer nghiKhongPhep = timesheetAbsence_list.size();
 				newTimesheetAbsence_Binding.setNghiKhongPhep(nghiKhongPhep);
-				
+
 				// nghiCachLy (type 15)
-				timesheetAbsence_list = timesheetAbsenceService.getNghiPhepTheoNgay(orgmanagerid_link, dateBegin, dateEnd, (long)15);
+				timesheetAbsence_list = timesheetAbsenceService.getNghiPhepTheoNgay(orgmanagerid_link, dateBegin, dateEnd, (long) 15);
 				Integer nghiCachLy = timesheetAbsence_list.size();
 				newTimesheetAbsence_Binding.setNghiCachLy(nghiCachLy);
-				
+
 				// nghConLai (not in 5,14,15)
 				List<Long> list_type = new ArrayList<Long>();
 				list_type.add((long) 5);
@@ -505,7 +517,7 @@ public class TimesheetAbsenceAPI {
 				timesheetAbsence_list = timesheetAbsenceService.getNghiPhepTheoNgay_ConLai(orgmanagerid_link, dateBegin, dateEnd, list_type);
 				Integer nghiConLai = timesheetAbsence_list.size();
 				newTimesheetAbsence_Binding.setNghiConLai(nghiConLai);
-				
+
 				// soCoMat = tongLaoDong - soTongNghi
 				// ko + nghi1phan2 (1/2 van tinh la la nghi)
 //				personel_list = personnelService.getTongLaoDongNghiByDate(orgmanagerid_link, dateBegin, dateEnd);
@@ -513,13 +525,13 @@ public class TimesheetAbsenceAPI {
 //				Integer soCoMat = tongLaoDong - soTongNghi + nghi1phan2;
 //				Integer soCoMat = tongLaoDong - soTongNghi;
 				Integer soCoMat = tongLaoDong - nghiConLai - nghiCachLy - nghiKhongPhep - nghiPhep;
-				
+
 //				System.out.println("--------");
 //				System.out.println(soCoMat);
 //				System.out.println(soCoMat2);
-				
+
 				newTimesheetAbsence_Binding.setSoCoMat(soCoMat);
-				
+
 //				if(personel_list.size() > 0 && org.getName().equals("Bắc Ninh 2")) {
 //					for(Personel p : personel_list) {
 //						System.out.println(p.getFullname());
@@ -531,12 +543,12 @@ public class TimesheetAbsenceAPI {
 //					System.out.println(dateEnd);
 //					System.out.println(org.getId());
 //				}
-				
-				
+
+
 				//
 				result.add(newTimesheetAbsence_Binding);
 			}
-			
+
 			// response
 			response.data = result;
 			response.setRespcode(ResponseMessage.KEY_RC_SUCCESS);
@@ -547,5 +559,190 @@ public class TimesheetAbsenceAPI {
 			response.setMessage(e.getMessage());
 			return new ResponseEntity<TimesheetAbsence_BaoCaoNS_repsonse>(HttpStatus.OK);
 		}
+	}
+	private final Logger LOGGER = LoggerFactory.getLogger(TimesheetAbsenceAPI.class);
+
+	@RequestMapping(value = "/ExportExcelBaoCaoNS", method = RequestMethod.POST)
+	public ResponseEntity<BaoCaoNS_Excel_response> downloadBaoCaoNS(@RequestBody getByOrgAndDate_request request,
+																	HttpServletRequest servletRequest) {
+		BaoCaoNS_Excel_response response = new BaoCaoNS_Excel_response();
+		try {
+			GpayUser user = (GpayUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+			Date date = request.date;
+			Date dateBegin = GPAYDateFormat.atStartOfDay(date);
+			Date dateEnd = GPAYDateFormat.atEndOfDay(date);
+			String pattern = "dd/MM/yyyy";
+			SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
+
+			String filePattern = "ddMMyyyy";
+			SimpleDateFormat fileSDF = new SimpleDateFormat(filePattern);
+			String folderPath = servletRequest.getServletContext().getRealPath("report/Export/BaoCaoNS/");
+			File uploadFolder = new File(folderPath);
+
+			if (!uploadFolder.exists()) {
+				boolean created = uploadFolder.mkdirs();
+			}
+
+			String fileName = "BaoCaoNS" + fileSDF.format(dateBegin)  + ".xlsx";
+			String excelFilePath = folderPath + fileName;
+
+			Calendar cal = Calendar.getInstance();
+			cal.setTime(dateBegin);
+			cal.set(Calendar.HOUR_OF_DAY, 0);
+			cal.set(Calendar.MINUTE, 0);
+			cal.set(Calendar.SECOND, 0);
+			cal.set(Calendar.MILLISECOND, 0);
+			dateBegin = cal.getTime();
+			cal.setTime(dateEnd);
+			cal.set(Calendar.HOUR_OF_DAY, 23);
+			cal.set(Calendar.MINUTE, 59);
+			cal.set(Calendar.SECOND, 0);
+			cal.set(Calendar.MILLISECOND, 0);
+			dateEnd = cal.getTime();
+
+			List<TimesheetAbsence_Binding> listOfData = new ArrayList<TimesheetAbsence_Binding>();
+
+			//  lấy danh sách đơn vị
+			List<Org> org_list = new ArrayList<Org>();
+			if (user.getOrgid_link().equals(user.getRootorgid_link())) {
+				org_list = orgService.findOrgByType(user.getRootorgid_link(), 0, OrgType.ORG_TYPE_FACTORY);
+			} else {
+				List<GpayUserOrg> list_userorg = userOrgService.getall_byuser_andtype(user.getId(),
+						OrgType.ORG_TYPE_FACTORY);
+				List<Long> list_org = new ArrayList<Long>();
+				for (GpayUserOrg gpayUserOrg : list_userorg) {
+					list_org.add(gpayUserOrg.getOrgid_link());
+				}
+				if (!list_org.contains(user.getOrgid_link())) {
+					list_org.add(user.getOrgid_link());
+				}
+				for (Long id : list_org) {
+					org_list.add(orgService.findOne(id));
+				}
+			}
+
+			// Lấy thông tin sl nghỉ cho từng đơn vị
+			for (Org org : org_list) {
+				TimesheetAbsence_Binding newTimesheetAbsence_Binding = new TimesheetAbsence_Binding();
+				newTimesheetAbsence_Binding.setOrgid_link(org.getId());
+				newTimesheetAbsence_Binding.setOrgName(org.getName());
+				newTimesheetAbsence_Binding.setOrgCode(org.getCode());
+
+				// timesheetAbsenceService
+				// (StartA <= EndB) and (EndA >= StartB) -> overlap
+				Long orgmanagerid_link = org.getId();
+				// tongLaoDong
+				List<Personel> personel_list = personnelService.getTongLaoDongByDate(orgmanagerid_link, dateBegin, dateEnd);
+				Integer tongLaoDong = personel_list.size();
+//				System.out.println("Tong Lao dong :");
+//				System.out.println(tongLaoDong);
+
+				newTimesheetAbsence_Binding.setTongLaoDong(tongLaoDong);
+
+				// nghiPhep (type 5)
+				List<TimesheetAbsence> timesheetAbsence_list = timesheetAbsenceService.getNghiPhepTheoNgay(orgmanagerid_link, dateBegin, dateEnd, (long) 5);
+				Integer nghiPhep = timesheetAbsence_list.size();
+				newTimesheetAbsence_Binding.setNghiPhep(nghiPhep);
+//				System.out.println("Nghi Phep");
+//				System.out.println(nghiPhep);
+				newTimesheetAbsence_Binding.setNghiPhep(nghiPhep);
+
+				// nghi1phan2
+				// trong khoảng 7h30 đến 1h30 hoặc sau 1h30 đến hết 17h
+				Calendar calendar = Calendar.getInstance();
+				Date caFrom1 = date;
+				calendar.setTime(caFrom1);
+				calendar.set(Calendar.HOUR_OF_DAY, 7);
+				calendar.set(Calendar.MINUTE, 30);
+				calendar.set(Calendar.SECOND, 0);
+				calendar.set(Calendar.MILLISECOND, 0);
+				caFrom1 = calendar.getTime();
+				Date caTo1 = date;
+				calendar.setTime(caTo1);
+				calendar.set(Calendar.HOUR_OF_DAY, 13);
+				calendar.set(Calendar.MINUTE, 30);
+				calendar.set(Calendar.SECOND, 0);
+				calendar.set(Calendar.MILLISECOND, 0);
+				caTo1 = calendar.getTime();
+				Date caFrom2 = date;
+				calendar.setTime(caFrom2);
+				calendar.set(Calendar.HOUR_OF_DAY, 13);
+				calendar.set(Calendar.MINUTE, 30);
+				calendar.set(Calendar.SECOND, 0);
+				calendar.set(Calendar.MILLISECOND, 0);
+				caFrom2 = calendar.getTime();
+				Date caTo2 = date;
+				calendar.setTime(caTo2);
+				calendar.set(Calendar.HOUR_OF_DAY, 17);
+				calendar.set(Calendar.MINUTE, 0);
+				calendar.set(Calendar.SECOND, 0);
+				calendar.set(Calendar.MILLISECOND, 0);
+				caTo2 = calendar.getTime();
+
+				timesheetAbsence_list = timesheetAbsenceService.getNghi1Phan2TheoNgay(orgmanagerid_link, caFrom1, caTo1, caFrom2, caTo2);
+				Integer nghi1phan2 = timesheetAbsence_list.size();
+				newTimesheetAbsence_Binding.setNghi1phan2(nghi1phan2);
+
+				// nghiKhongPhep (type 14)
+				timesheetAbsence_list = timesheetAbsenceService.getNghiPhepTheoNgay(orgmanagerid_link, dateBegin, dateEnd, (long) 14);
+				Integer nghiKhongPhep = timesheetAbsence_list.size();
+//				System.out.println("NghiKhongPhep");
+//				System.out.println(nghiKhongPhep);
+				newTimesheetAbsence_Binding.setNghiKhongPhep(nghiKhongPhep);
+
+				// nghiCachLy (type 15)
+				timesheetAbsence_list = timesheetAbsenceService.getNghiPhepTheoNgay(orgmanagerid_link, dateBegin, dateEnd, (long) 15);
+				Integer nghiCachLy = timesheetAbsence_list.size();
+//				System.out.println("Nghi Cach Ly");
+//				System.out.println(nghiCachLy);
+				newTimesheetAbsence_Binding.setNghiCachLy(nghiCachLy);
+
+				// nghConLai (not in 5,14,15)
+				List<Long> list_type = new ArrayList<Long>();
+				list_type.add((long) 5);
+				list_type.add((long) 14);
+				list_type.add((long) 15);
+				timesheetAbsence_list = timesheetAbsenceService.getNghiPhepTheoNgay_ConLai(orgmanagerid_link, dateBegin, dateEnd, list_type);
+				Integer nghiConLai = timesheetAbsence_list.size();
+//				System.out.println("Nghi Con Lai");
+//				System.out.println(nghiConLai);
+				newTimesheetAbsence_Binding.setNghiConLai(nghiConLai);
+
+
+				Integer soCoMat = tongLaoDong - nghiConLai - nghiCachLy - nghiKhongPhep - nghiPhep;
+
+
+//				System.out.println("So Ca Mat");
+//				System.out.println(soCoMat);
+				newTimesheetAbsence_Binding.setSoCoMat(soCoMat);
+
+				listOfData.add(newTimesheetAbsence_Binding);
+
+
+			}
+
+			// response
+////			response.data = listOfData;
+//			System.out.println("++++++++++++++++++++");
+//			System.out.println(listOfData);
+			File excelFile = BaoCaoNS_Excel.createBaoCaoNS(excelFilePath, listOfData,simpleDateFormat.format(dateBegin));
+			InputStream dataInputStream = new FileInputStream(excelFile);
+
+			response.setData(IOUtils.toByteArray(dataInputStream));
+			response.setRespcode(ResponseMessage.KEY_RC_SUCCESS);
+			response.setMessage(ResponseMessage.getMessage(ResponseMessage.KEY_RC_SUCCESS));
+
+			dataInputStream.close();
+
+			return ResponseEntity.ok(response);
+		} catch (Exception exception) {
+			LOGGER.error(exception.getMessage());
+			response.setData(null);
+			response.setRespcode(ResponseMessage.KEY_RC_APPROVE_FAIL);
+			response.setMessage(ResponseMessage.getMessage(ResponseMessage.KEY_RC_APPROVE_FAIL));
+			return ResponseEntity.badRequest().body(response);
+		}
+
+
 	}
 }

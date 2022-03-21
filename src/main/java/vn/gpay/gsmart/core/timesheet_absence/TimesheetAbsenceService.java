@@ -61,7 +61,7 @@ public class TimesheetAbsenceService extends AbstractService<TimesheetAbsence> i
 				timeSheetAbsenceType);
 	}
 
-	@Override
+
 	public List<TimesheetAbsence> getByOrgAndDate(Long orgid_link, Date date) {
 		// TODO Auto-generated method stub
 		Date dateto = Common.Date_Add(date, 1);
