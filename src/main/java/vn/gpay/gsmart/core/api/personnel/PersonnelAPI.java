@@ -521,14 +521,32 @@ public class PersonnelAPI {
 					isUpdateBikeNumber = true;
 				}
 			}
-
-			person = personService.save(person);
-
+			
 			if (isUpdateBikeNumber) {
 				Stocking_UniqueCode stocking = stockingService.getby_type(5);
 				int stocking_max = stocking.getStocking_max();
 				stocking.setStocking_max(stocking_max + 1);
 				stockingService.save(stocking);
+			}
+			
+			// Lưu trữ lích sử khi thay đổi chức vụ	
+			Personnel_His personhis = new Personnel_His();
+			if(person.getId() == null) {
+				personService.save(person);
+				personhis.setPersonnelid_link(person.getId());
+				personhis.setPositionid_link(person.getPositionid_link());
+				personhis.setType(1);
+				hispersonService.save(personhis);
+			} else {
+				Personel person2 = personService.findOne(person.getId());
+				if(!person2.getPositionid_link().equals(person.getPositionid_link())) {
+					personhis.setPersonnelid_link(person.getId());
+					personhis.setPositionid_link(person.getPositionid_link());
+					personhis.setType(1);
+					hispersonService.save(personhis);
+				}
+				personService.save(person);
+		
 			}
 
 			response.id = person.getId();
