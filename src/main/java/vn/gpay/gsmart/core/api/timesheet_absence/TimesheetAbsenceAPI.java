@@ -560,7 +560,6 @@ public class TimesheetAbsenceAPI {
 			return new ResponseEntity<TimesheetAbsence_BaoCaoNS_repsonse>(HttpStatus.OK);
 		}
 	}
-	private final Logger LOGGER = LoggerFactory.getLogger(TimesheetAbsenceAPI.class);
 
 	@RequestMapping(value = "/ExportExcelBaoCaoNS", method = RequestMethod.POST)
 	public ResponseEntity<BaoCaoNS_Excel_response> downloadBaoCaoNS(@RequestBody getByOrgAndDate_request request,
@@ -736,7 +735,6 @@ public class TimesheetAbsenceAPI {
 
 			return ResponseEntity.ok(response);
 		} catch (Exception exception) {
-			LOGGER.error(exception.getMessage());
 			response.setData(null);
 			response.setRespcode(ResponseMessage.KEY_RC_APPROVE_FAIL);
 			response.setMessage(ResponseMessage.getMessage(ResponseMessage.KEY_RC_APPROVE_FAIL));
