@@ -532,7 +532,8 @@ public class PersonnelAPI {
 			// Lưu trữ lích sử khi thay đổi chức vụ	
 			Personnel_His personhis = new Personnel_His();
 			if(person.getId() == null) {
-				personService.save(person);
+				person = personService.save(person);
+				personhis.setDecision_date(new Date());
 				personhis.setPersonnelid_link(person.getId());
 				personhis.setPositionid_link(person.getPositionid_link());
 				personhis.setType(1);
@@ -540,12 +541,13 @@ public class PersonnelAPI {
 			} else {
 				Personel person2 = personService.findOne(person.getId());
 				if(!person2.getPositionid_link().equals(person.getPositionid_link())) {
+					personhis.setDecision_date(new Date());
 					personhis.setPersonnelid_link(person.getId());
 					personhis.setPositionid_link(person.getPositionid_link());
 					personhis.setType(1);
 					hispersonService.save(personhis);
 				}
-				personService.save(person);
+				person = personService.save(person);
 		
 			}
 
