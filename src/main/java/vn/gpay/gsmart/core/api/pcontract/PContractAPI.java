@@ -55,6 +55,8 @@ import vn.gpay.gsmart.core.pcontract.IPContractService;
 import vn.gpay.gsmart.core.pcontract.IPContract_AutoID_Service;
 import vn.gpay.gsmart.core.pcontract.PContract;
 import vn.gpay.gsmart.core.pcontract.PContractChart;
+
+
 import vn.gpay.gsmart.core.pcontract_po.IPContract_POService;
 import vn.gpay.gsmart.core.pcontract_po.PContract_PO;
 import vn.gpay.gsmart.core.pcontractbomcolor.IPContractBOMColorService;
@@ -65,6 +67,10 @@ import vn.gpay.gsmart.core.pcontractbomsku.IPContractBOM2SKUService;
 import vn.gpay.gsmart.core.pcontractbomsku.IPContractBOMSKUService;
 import vn.gpay.gsmart.core.pcontractbomsku.PContractBOM2SKU;
 import vn.gpay.gsmart.core.pcontractbomsku.PContractBOMSKU;
+import vn.gpay.gsmart.core.pcontractmarket.IPContractMarketRepository;
+//import vn.gpay.gsmart.core.pcontractmarket.IPContractMarketService;
+import vn.gpay.gsmart.core.pcontractmarket.IPContractMarketService;
+import vn.gpay.gsmart.core.pcontractmarket.PContractMarket;
 import vn.gpay.gsmart.core.pcontractproduct.IPContractProductService;
 import vn.gpay.gsmart.core.pcontractproduct.PContractProduct;
 import vn.gpay.gsmart.core.pcontractproductbom.IPContractProductBom2Service;
@@ -101,6 +107,10 @@ import vn.gpay.gsmart.core.utils.ResponseMessage;
 @RestController
 @RequestMapping("/api/v1/pcontract")
 public class PContractAPI {
+//	@Autowired
+//	IPContractMarketRepository repo;
+	@Autowired
+	IPContractMarketService pcontract_market_Serive;
 	@Autowired
 	IPContractService pcontractService;
 	@Autowired
@@ -150,7 +160,8 @@ public class PContractAPI {
 
 	@RequestMapping(value = "/create", method = RequestMethod.POST)
 	public ResponseEntity<PContract_create_response> PContractCreate(@RequestBody PContract_create_request entity,
-			HttpServletRequest request) {
+																	 HttpServletRequest request) {
+		System.out.println(entity);
 		PContract_create_response response = new PContract_create_response();
 		try {
 			GpayUser user = (GpayUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -186,8 +197,34 @@ public class PContractAPI {
 				pcontract.setUsercreatedid_link(pc_old.getUsercreatedid_link());
 				pcontract.setDatecreated(pc_old.getDatecreated());
 			}
-
 			pcontract = pcontractService.save(pcontract);
+
+
+			Long id = pcontract.getId();
+			List<Long> marketArray = entity.markettypeArray;
+
+			if(marketArray.size() == 0) {
+				response.setRespcode(ResponseMessage.KEY_RC_EXCEPTION);
+				response.setMessage("Ban chua chon thi truong");
+				return new ResponseEntity<PContract_create_response>(response, HttpStatus.BAD_REQUEST);
+			}
+
+//			List<PContractMarket> list = pcontract_market_Serive.get_by_pcontractid(id);
+			List<PContractMarket> list = pcontract_market_Serive.get_by_pcontractid_link_notin_marketid_link(id, marketArray);
+
+			if(list.size() > 0) {
+				for (int i = 0; i < list.size(); i++) {
+					pcontract_market_Serive.deleteById(list.get(i).getId());
+				}
+			}
+			for(int i = 0; i < marketArray.size(); i++) {
+				list = pcontract_market_Serive.get_by_pcontractid_link_marketid_link(id, marketArray.get(i));
+				if(list.size() == 0) {
+				pcontract_market_Serive.save(new PContractMarket(id, marketArray.get(i)));
+				}
+			}
+
+
 			response.id = pcontract.getId();
 			response.setRespcode(ResponseMessage.KEY_RC_SUCCESS);
 			response.setMessage(ResponseMessage.getMessage(ResponseMessage.KEY_RC_SUCCESS));
@@ -225,7 +262,7 @@ public class PContractAPI {
 
 	@RequestMapping(value = "/getpcontractchart", method = RequestMethod.POST)
 	public ResponseEntity<GetProductNotBomResponse> GetProductNotBom(@RequestBody GetProductNotBomRequest entity,
-			HttpServletRequest request) {
+																	 HttpServletRequest request) {
 		GetProductNotBomResponse response = new GetProductNotBomResponse();
 		try {
 			int year = entity.year;
@@ -309,12 +346,12 @@ public class PContractAPI {
 
 	@RequestMapping(value = "/getone", method = RequestMethod.POST)
 	public ResponseEntity<PContract_getone_response> PContractGetOne(@RequestBody PContract_getone_request entity,
-			HttpServletRequest request) {
+																	 HttpServletRequest request) {
 		PContract_getone_response response = new PContract_getone_response();
 		try {
 
+			response.market = pcontract_market_Serive.getmarketid_by_pcontractid_link(entity.id);
 			response.data = pcontractService.findOne(entity.id);
-
 			response.setRespcode(ResponseMessage.KEY_RC_SUCCESS);
 			response.setMessage(ResponseMessage.getMessage(ResponseMessage.KEY_RC_SUCCESS));
 			return new ResponseEntity<PContract_getone_response>(response, HttpStatus.OK);
@@ -327,7 +364,7 @@ public class PContractAPI {
 
 	@RequestMapping(value = "/delete", method = RequestMethod.POST)
 	public ResponseEntity<ResponseBase> PContractDelete(@RequestBody PContract_delete_request entity,
-			HttpServletRequest request) {
+														HttpServletRequest request) {
 		ResponseBase response = new ResponseBase();
 		GpayUser user = (GpayUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 		try {
@@ -410,13 +447,13 @@ public class PContractAPI {
 		GpayUser user = (GpayUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 
 //		//fix dieu kien tim kiem cho vendor cua DHA
-//		if (user.getUsername().toLowerCase().trim().contains("hansoll")) 
+//		if (user.getUsername().toLowerCase().trim().contains("hansoll"))
 //			entity.orgvendorid_link = 197;
 //		else
-//			if (user.getUsername().toLowerCase().trim().contains("paroman")) 
+//			if (user.getUsername().toLowerCase().trim().contains("paroman"))
 //				entity.orgvendorid_link = 200;
 //		else
-//			if (user.getUsername().toLowerCase().trim().contains("ekline")) 
+//			if (user.getUsername().toLowerCase().trim().contains("ekline"))
 //				entity.orgvendorid_link = 189;
 
 		// Lay danh sach Vendor duoc phep quan ly
@@ -539,7 +576,7 @@ public class PContractAPI {
 			return new ResponseEntity<PContract_getbypaging_response>(response, HttpStatus.OK);
 		}
 	}
-	
+
 	@RequestMapping(value = "/getByProduct", method = RequestMethod.POST)
 	public ResponseEntity<PContract_getbypaging_response> getByProduct(
 			@RequestBody PContract_findByContractcode_request entity, HttpServletRequest request) {
@@ -549,7 +586,7 @@ public class PContractAPI {
 		try {
 			Long productid_link = entity.productid_link;
 			response.data = pcontractService.getByProduct(productid_link);
-			
+
 			response.setRespcode(ResponseMessage.KEY_RC_SUCCESS);
 			response.setMessage(ResponseMessage.getMessage(ResponseMessage.KEY_RC_SUCCESS));
 			return new ResponseEntity<PContract_getbypaging_response>(response, HttpStatus.OK);
@@ -561,7 +598,7 @@ public class PContractAPI {
 		}
 	}
 
-	
+
 	@RequestMapping(value = "/getByMaterial_of_Product_Pcontract", method = RequestMethod.POST)
 	public ResponseEntity<PContract_getbypaging_response> getByMaterial_of_Product_Pcontract(
 			@RequestBody PContract_findByContractcode_request entity, HttpServletRequest request) {
@@ -571,9 +608,9 @@ public class PContractAPI {
 		try {
 			Long productid_link = entity.productid_link;
 			Long pcontractid_link = entity.pcontractid_link;
-			
+
 			// mượn cây vải từ đơn hàng khác
-			
+
 			List<PContract> result = new ArrayList<PContract>();
 			//  lấy danh sách loại vải của sản phẩm
 			List<PContractProductBom2> listbom = pcontract_bom2_Service.get_material_in_pcontract_productBOM(productid_link, pcontractid_link, 20);
@@ -581,7 +618,7 @@ public class PContractAPI {
 			for(PContractProductBom2 pcontractProductBom2 : listbom) {
 				skuid_list.add(pcontractProductBom2.getMaterialid_link());
 			}
-			
+
 			// tìm những đơn hàng khác có chứa sản phẩm có loại vải dùng bởi sản phẩm của đơn hàng request
 			if(skuid_list.size() > 0) {
 				List<PContract> pcontract_list = pcontractService.getByBom_Sku(skuid_list);
@@ -592,10 +629,10 @@ public class PContractAPI {
 					result.add(pcontract);
 				}
 			}
-			
-			
+
+
 			response.data = result;
-			
+
 			response.setRespcode(ResponseMessage.KEY_RC_SUCCESS);
 			response.setMessage(ResponseMessage.getMessage(ResponseMessage.KEY_RC_SUCCESS));
 			return new ResponseEntity<PContract_getbypaging_response>(response, HttpStatus.OK);
@@ -606,10 +643,10 @@ public class PContractAPI {
 			return new ResponseEntity<PContract_getbypaging_response>(response, HttpStatus.OK);
 		}
 	}
-	
+
 	@RequestMapping(value = "/get_TongHopBaoCaoKHSX", method = RequestMethod.POST)
 	public ResponseEntity<porder_report_response> get_TongHopBaoCaoKHSX(@RequestBody PContract_export_excel_request entity,
-			HttpServletRequest request) {
+																		HttpServletRequest request) {
 		porder_report_response response = new porder_report_response();
 		try {
 			GpayUser user = (GpayUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -637,7 +674,7 @@ public class PContractAPI {
 			List<Long> product_ids = new ArrayList<Long>();
 			PContract pcontract = pcontractService.findOne(pcontract_id);
 			String maHang = "";
-			
+
 			// lấy danh sach product_id (neu in khsx tu menu -> thong tin don hang)
 			if(product_ids_req != null) {
 				for(Long product_id : product_ids_req) {
@@ -646,7 +683,7 @@ public class PContractAPI {
 					maHang = product.getBuyercode().trim();
 				}
 			}
-			
+
 			// lay id pcontract_poid_link (neu in khsx tu po ke hoach menu chi tiet po)
 			Long pcontract_poid_link = entity.pcontract_poid_link;
 			PContract_PO pcontractpo_req = null;
@@ -658,24 +695,24 @@ public class PContractAPI {
 					maHang = product.getBuyercode().trim();
 				}
 			}
-			
+
 			// danh sach obj de chuan bi them vao file
 			List<PContractProductSKUBinding> pcontractProductSKUBinding_list = new ArrayList<PContractProductSKUBinding>();
-			
+
 			// list po ke hoach
 			List<PContract_PO> pcontract_PO_list = new ArrayList<PContract_PO>();
 //			if(pcontractpo_req == null) {
 //				pcontract_PO_list = pcontract_POService.getPO_Offer_Accept_ByPContract_AndOrg(
 //						pcontract.getId(), (long)0, list_org);
-//			}else 
+//			}else
 			if(product_ids.size() > 0){
 				pcontract_PO_list = pcontract_POService.getPO_Offer_Accept_ByPContract_AndOrg(
 						pcontract.getId(), product_ids.get(0), list_org);
 			}else if(pcontractpo_req != null){
 				pcontract_PO_list.add(pcontractpo_req);
 			}
-			
-			
+
+
 			// list po thuc te
 			List<PContract_PO> PContract_PO_thucte_list = new ArrayList<PContract_PO>();
 			for(PContract_PO pcontract_po : pcontract_PO_list) {
@@ -685,20 +722,20 @@ public class PContractAPI {
 //				System.out.println("size thuc te " + listPContractPO.size());
 			}
 //			response.data3 = new ArrayList<PContractProductSKUBinding>();
-			
+
 			for(PContract_PO pcontract_po : PContract_PO_thucte_list) {
 				// ds mau co -> sl -> set vao binding
-				
+
 				String maPo = pcontract_po.getPo_buyer() == null ? "" : pcontract_po.getPo_buyer();
 				Date shipdate = pcontract_po.getShipdate();
 				String dateString = "";
 				if(shipdate != null) {
-					 SimpleDateFormat formatter = new SimpleDateFormat("d/M");  
-					 dateString = formatter.format(shipdate);
+					SimpleDateFormat formatter = new SimpleDateFormat("d/M");
+					dateString = formatter.format(shipdate);
 				}
-				
+
 				List<PContractProductSKU> PContractProductSKU_list = new ArrayList<PContractProductSKU>();
-				
+
 				Product product = productService.findOne(pcontract_po.getProductid_link());
 				if(product != null) {
 					Integer producttypeid_link = product.getProducttypeid_link();
@@ -711,28 +748,28 @@ public class PContractAPI {
 //										);
 //								PContractProductSKU_list.addAll(pcontractProductSKU_list_spCOn);
 //							}
-						
+
 						// new gộp các sku thành bộ, tính sl bộ
 						if(dsSpCon.size() > 0) {
 							ProductPairing sp1trongBo = dsSpCon.get(0); // sp con dau tien, lay roi so sanh voi cac sp con con lai trong bo -> tinh ra tong so bo
 							Long idsp1trongBo = sp1trongBo.getProductid_link();
 							List<PContractProductSKU> pcontractProductSKU_list_spConDauTien = pskuservice.getbypo_and_product(
 									pcontract_po.getId(), idsp1trongBo
-									);
-							
+							);
+
 							for(PContractProductSKU pcontractProductSKU : pcontractProductSKU_list_spConDauTien) {
 								Long sizeId = pcontractProductSKU.getSizeid_link();
 								Long colorId = pcontractProductSKU.getColor_id();
-								
+
 								Integer slBo = 0;
 								Integer sp1_sl = pcontractProductSKU.getPquantity_total() == null ? 0 : pcontractProductSKU.getPquantity_total();
 								Integer sp1_amountTrongBo = sp1trongBo.getAmount() == null ? 1 : sp1trongBo.getAmount();
 								slBo = sp1_sl / sp1_amountTrongBo;
-								
+
 //								System.out.println("1 " + sp1_amountTrongBo);
 //								System.out.println("sp1_sl " + sp1_sl);
 //								System.out.println("slBo " + slBo);
-								
+
 								for(ProductPairing productPairing : dsSpCon) {
 									// loop qua cac sp con lai
 									if(!sp1trongBo.getProductid_link().equals(productPairing.getProductid_link())) {
@@ -742,7 +779,7 @@ public class PContractAPI {
 										List<PContractProductSKU> list_PContractProductSKU =
 												pskuservice.getByPoLine_product(pcontract_po.getId(), productPairing.getProductid_link());
 //											System.out.println("753: " + list_PContractProductSKU.size());
-										
+
 										PContractProductSKU temp = null;
 										Boolean isExist = false;
 										for(PContractProductSKU ppsku : list_PContractProductSKU) {
@@ -752,7 +789,7 @@ public class PContractAPI {
 												break;
 											}
 										}
-										
+
 										if(!isExist || temp == null) {
 											slBo = 0;
 //											System.out.println("2 " + "null");
@@ -768,7 +805,7 @@ public class PContractAPI {
 										}
 									}
 								}
-								
+
 								// neu slBo > 0 -> them vao danh sach
 								if(slBo > 0) {
 									SKU sku = skuService.findOne(pcontractProductSKU.getSkuid_link());
@@ -785,19 +822,19 @@ public class PContractAPI {
 									newPContractProductSKUBinding.setMauMaSanPham(pcontractProductSKU.getMauSanPham() + "-" + sku.getProduct_code());
 									newPContractProductSKUBinding.setPo_CodeExtra(pcontract_po.getCode_extra());
 									pcontractProductSKUBinding_list.add(newPContractProductSKUBinding);
-									
+
 								}
 							}
-							
+
 						}
-						
+
 					}else {
 						PContractProductSKU_list = pskuservice.getbypo_and_product(
 								pcontract_po.getId(), pcontract_po.getProductid_link()
-								);
+						);
 					}
 				}
-				
+
 				for(PContractProductSKU pcontractProductSKU : PContractProductSKU_list) {
 					SKU sku = skuService.findOne(pcontractProductSKU.getSkuid_link());
 					PContractProductSKUBinding newPContractProductSKUBinding = new PContractProductSKUBinding();
@@ -816,47 +853,47 @@ public class PContractAPI {
 					pcontractProductSKUBinding_list.add(newPContractProductSKUBinding);
 				}
 			}
-			
+
 			// sort theo MaSanPhamPONgayGiao -> dung cho danh sach tren
 			Collections.sort(pcontractProductSKUBinding_list, new Comparator<PContractProductSKUBinding>() {
 				public int compare(PContractProductSKUBinding o1, PContractProductSKUBinding o2) {
 //					return o1.getMaSanPhamPONgayGiao().compareTo(o2.getMaSanPhamPONgayGiao());
-					
+
 					String x1 = o1.getMaSanPhamPONgayGiao();
-		            String x2 = o2.getMaSanPhamPONgayGiao();
-		            int sComp = x1.compareTo(x2);
+					String x2 = o2.getMaSanPhamPONgayGiao();
+					int sComp = x1.compareTo(x2);
 
-		            if (sComp != 0) {
-		               return sComp;
-		            } 
+					if (sComp != 0) {
+						return sComp;
+					}
 
-		            String y1 = o1.getMauSanPham();
-		            String y2 = o2.getMauSanPham();
-		            return y1.compareTo(y2);
+					String y1 = o1.getMauSanPham();
+					String y2 = o2.getMauSanPham();
+					return y1.compareTo(y2);
 
 				}
 			});
-			
+
 			// copy danh sach -> dung cho danh sach duoi
 			List<PContractProductSKUBinding> pcontractProductSKUBinding_list_2 = new ArrayList<PContractProductSKUBinding>(pcontractProductSKUBinding_list);
 			Collections.sort(pcontractProductSKUBinding_list_2, new Comparator<PContractProductSKUBinding>() {
 				public int compare(PContractProductSKUBinding o1, PContractProductSKUBinding o2) {
 //					return o1.getMaSanPhamPONgayGiao().compareTo(o2.getMaSanPhamPONgayGiao());
-					
-					String x1 = o1.getMauMaSanPham();
-		            String x2 = o2.getMauMaSanPham();
-		            int sComp = x1.compareTo(x2);
-		            
-		            if (sComp != 0) {
-			            return sComp;
-			        } 
 
-		            Integer y1 = o1.getSort_size();
-		            Integer y2 = o2.getSort_size();
-		            return y1.compareTo(y2);
+					String x1 = o1.getMauMaSanPham();
+					String x2 = o2.getMauMaSanPham();
+					int sComp = x1.compareTo(x2);
+
+					if (sComp != 0) {
+						return sComp;
+					}
+
+					Integer y1 = o1.getSort_size();
+					Integer y2 = o2.getSort_size();
+					return y1.compareTo(y2);
 				}
 			});
-			
+
 			// them vao file excel
 			String uploadRoot = request.getServletContext().getRealPath("report/Export/KeHoachSX");
 			File uploadRootDir = new File(uploadRoot);
@@ -864,40 +901,40 @@ public class PContractAPI {
 			if (!uploadRootDir.exists()) {
 				uploadRootDir.mkdirs();
 			}
-			
+
 			Date current_time = new Date();
 			File FileExport = new File(uploadRoot + "/Template_KeHoachSX.xlsx");
 			File FileCopy = new File(uploadRoot + "/Template_KeHoachSX_" + current_time.getTime() + ".xlsx"); // copy cua
-																												// template
-																												// de chinh
-																												// sua tren
-																												// do
+			// template
+			// de chinh
+			// sua tren
+			// do
 			File file = new File(uploadRoot + "/KeHoachSX_Export_" + current_time.getTime() + ".xlsx"); // file de export
 			// tao file copy cua template
 			Files.copy(FileExport, FileCopy);
 			FileInputStream is_filecopy = new FileInputStream(FileCopy);
-			
+
 			XSSFWorkbook workbook = new XSSFWorkbook(is_filecopy);
 			XSSFSheet sheet = workbook.getSheetAt(0);
-			
+
 			// tao font de cho vao style
 
 			XSSFFont font_Calibri = workbook.createFont();
 			font_Calibri.setFontName("Calibri");
 			font_Calibri.setFontHeightInPoints((short) 9.5);
-			
+
 			XSSFFont font_Calibri_bold = workbook.createFont();
 			font_Calibri_bold.setFontName("Calibri");
 			font_Calibri_bold.setFontHeightInPoints((short) 10);
 			font_Calibri_bold.setBold(true);
-			
+
 			XSSFFont font_Calibri_Italic = workbook.createFont();
 			font_Calibri_Italic.setFontName("Calibri");
 			font_Calibri_Italic.setFontHeightInPoints((short) 9.5);
 			font_Calibri_Italic.setItalic(true);
-			
+
 			// Style cua Ha
-			
+
 			XSSFCellStyle cellStyle_Ngay = workbook.createCellStyle();
 			cellStyle_Ngay.setAlignment(HorizontalAlignment.CENTER);
 			cellStyle_Ngay.setVerticalAlignment(VerticalAlignment.CENTER);
@@ -909,7 +946,7 @@ public class PContractAPI {
 //			cellStyle_Ngay.setBorderBottom(BorderStyle.DOTTED);
 //			cellStyle_Ngay.setBorderLeft(BorderStyle.THIN);
 //			cellStyle_Ngay.setBorderRight(BorderStyle.THIN);
-			
+
 			// style danh sach tren
 			XSSFCellStyle cellStyle_STT = workbook.createCellStyle();
 			cellStyle_STT.setAlignment(HorizontalAlignment.CENTER);
@@ -922,7 +959,7 @@ public class PContractAPI {
 			cellStyle_STT.setBorderBottom(BorderStyle.DOTTED);
 			cellStyle_STT.setBorderLeft(BorderStyle.MEDIUM);
 			cellStyle_STT.setBorderRight(BorderStyle.THIN);
-			
+
 			XSSFCellStyle cellStyle_Ma = workbook.createCellStyle();
 			cellStyle_Ma.setAlignment(HorizontalAlignment.LEFT);
 			cellStyle_Ma.setVerticalAlignment(VerticalAlignment.CENTER);
@@ -935,7 +972,7 @@ public class PContractAPI {
 			cellStyle_Ma.setBorderBottom(BorderStyle.DOTTED);
 //			cellStyle_Ma.setBorderLeft(BorderStyle.THIN);
 			cellStyle_Ma.setBorderRight(BorderStyle.THIN);
-			
+
 			XSSFCellStyle cellStyle_Mau = workbook.createCellStyle();
 			cellStyle_Mau.setAlignment(HorizontalAlignment.LEFT);
 			cellStyle_Mau.setVerticalAlignment(VerticalAlignment.CENTER);
@@ -947,7 +984,7 @@ public class PContractAPI {
 			cellStyle_Mau.setBorderBottom(BorderStyle.DOTTED);
 //			cellStyle_Mau.setBorderLeft(BorderStyle.THIN);
 			cellStyle_Mau.setBorderRight(BorderStyle.THIN);
-			
+
 			XSSFCellStyle cellStyle_SL = workbook.createCellStyle();
 			cellStyle_SL.setAlignment(HorizontalAlignment.RIGHT);
 			cellStyle_SL.setVerticalAlignment(VerticalAlignment.CENTER);
@@ -960,7 +997,7 @@ public class PContractAPI {
 //			cellStyle_SL.setBorderLeft(BorderStyle.THIN);
 			cellStyle_SL.setBorderRight(BorderStyle.DOTTED);
 			cellStyle_SL.setDataFormat(3);
-			
+
 			XSSFCellStyle cellStyle_SL_center_value0 = workbook.createCellStyle();
 			cellStyle_SL_center_value0.setAlignment(HorizontalAlignment.CENTER);
 			cellStyle_SL_center_value0.setVerticalAlignment(VerticalAlignment.CENTER);
@@ -973,7 +1010,7 @@ public class PContractAPI {
 //			cellStyle_SL_center_value0.setBorderLeft(BorderStyle.THIN);
 			cellStyle_SL_center_value0.setBorderRight(BorderStyle.DOTTED);
 			cellStyle_SL_center_value0.setDataFormat(3);
-			
+
 			XSSFCellStyle cellStyle_Tong_Right = workbook.createCellStyle();
 			cellStyle_Tong_Right.setAlignment(HorizontalAlignment.RIGHT);
 			cellStyle_Tong_Right.setVerticalAlignment(VerticalAlignment.CENTER);
@@ -986,7 +1023,7 @@ public class PContractAPI {
 			cellStyle_Tong_Right.setBorderLeft(BorderStyle.THIN);
 			cellStyle_Tong_Right.setBorderRight(BorderStyle.MEDIUM);
 			cellStyle_Tong_Right.setDataFormat(3);
-			
+
 			XSSFCellStyle cellStyle_Tong_Bottom_STT = workbook.createCellStyle();
 			cellStyle_Tong_Bottom_STT.setAlignment(HorizontalAlignment.CENTER);
 			cellStyle_Tong_Bottom_STT.setVerticalAlignment(VerticalAlignment.CENTER);
@@ -998,7 +1035,7 @@ public class PContractAPI {
 			cellStyle_Tong_Bottom_STT.setBorderBottom(BorderStyle.MEDIUM);
 			cellStyle_Tong_Bottom_STT.setBorderLeft(BorderStyle.MEDIUM);
 //			cellStyle_Tong_Bottom_STT.setBorderRight(BorderStyle.MEDIUM);
-			
+
 			XSSFCellStyle cellStyle_Tong_Bottom_Text = workbook.createCellStyle();
 			cellStyle_Tong_Bottom_Text.setAlignment(HorizontalAlignment.CENTER);
 			cellStyle_Tong_Bottom_Text.setVerticalAlignment(VerticalAlignment.CENTER);
@@ -1010,7 +1047,7 @@ public class PContractAPI {
 			cellStyle_Tong_Bottom_Text.setBorderBottom(BorderStyle.MEDIUM);
 //			cellStyle_Tong_Bottom_Text.setBorderLeft(BorderStyle.THIN);
 			cellStyle_Tong_Bottom_Text.setBorderRight(BorderStyle.MEDIUM);
-			
+
 			XSSFCellStyle cellStyle_Tong_Bottom_SL = workbook.createCellStyle();
 			cellStyle_Tong_Bottom_SL.setAlignment(HorizontalAlignment.RIGHT);
 			cellStyle_Tong_Bottom_SL.setVerticalAlignment(VerticalAlignment.CENTER);
@@ -1023,7 +1060,7 @@ public class PContractAPI {
 //			cellStyle_Tong_Bottom_SL.setBorderLeft(BorderStyle.THIN);
 			cellStyle_Tong_Bottom_SL.setBorderRight(BorderStyle.DOTTED);
 			cellStyle_Tong_Bottom_SL.setDataFormat(3);
-			
+
 			XSSFCellStyle cellStyle_Tong_Bottom_Tong = workbook.createCellStyle();
 			cellStyle_Tong_Bottom_Tong.setAlignment(HorizontalAlignment.RIGHT);
 			cellStyle_Tong_Bottom_Tong.setVerticalAlignment(VerticalAlignment.CENTER);
@@ -1036,7 +1073,7 @@ public class PContractAPI {
 			cellStyle_Tong_Bottom_Tong.setBorderLeft(BorderStyle.THIN);
 			cellStyle_Tong_Bottom_Tong.setBorderRight(BorderStyle.MEDIUM);
 			cellStyle_Tong_Bottom_Tong.setDataFormat(3);
-			
+
 			// style danh sach duoi
 			XSSFCellStyle cellStyle_Text_Title = workbook.createCellStyle();
 			cellStyle_Text_Title.setAlignment(HorizontalAlignment.CENTER);
@@ -1049,7 +1086,7 @@ public class PContractAPI {
 			cellStyle_Text_Title.setBorderBottom(BorderStyle.THIN);
 			cellStyle_Text_Title.setBorderLeft(BorderStyle.MEDIUM);
 			cellStyle_Text_Title.setBorderRight(BorderStyle.THIN);
-			
+
 			XSSFCellStyle cellStyle_Text_Title_Number = workbook.createCellStyle();
 			cellStyle_Text_Title_Number.setAlignment(HorizontalAlignment.CENTER);
 			cellStyle_Text_Title_Number.setVerticalAlignment(VerticalAlignment.CENTER);
@@ -1061,7 +1098,7 @@ public class PContractAPI {
 			cellStyle_Text_Title_Number.setBorderBottom(BorderStyle.THIN);
 			cellStyle_Text_Title_Number.setBorderLeft(BorderStyle.THIN);
 			cellStyle_Text_Title_Number.setBorderRight(BorderStyle.THIN);
-			
+
 			XSSFCellStyle cellStyle_Text_Title_Tong = workbook.createCellStyle();
 			cellStyle_Text_Title_Tong.setAlignment(HorizontalAlignment.CENTER);
 			cellStyle_Text_Title_Tong.setVerticalAlignment(VerticalAlignment.CENTER);
@@ -1073,7 +1110,7 @@ public class PContractAPI {
 			cellStyle_Text_Title_Tong.setBorderBottom(BorderStyle.THIN);
 			cellStyle_Text_Title_Tong.setBorderLeft(BorderStyle.THIN);
 			cellStyle_Text_Title_Tong.setBorderRight(BorderStyle.MEDIUM);
-			
+
 			XSSFCellStyle cellStyle_Text_Color = workbook.createCellStyle();
 			cellStyle_Text_Color.setAlignment(HorizontalAlignment.LEFT);
 			cellStyle_Text_Color.setVerticalAlignment(VerticalAlignment.CENTER);
@@ -1085,7 +1122,7 @@ public class PContractAPI {
 			cellStyle_Text_Color.setBorderBottom(BorderStyle.DOTTED);
 			cellStyle_Text_Color.setBorderLeft(BorderStyle.MEDIUM);
 			cellStyle_Text_Color.setBorderRight(BorderStyle.THIN);
-			
+
 			XSSFCellStyle cellStyle_Text_SL = workbook.createCellStyle();
 			cellStyle_Text_SL.setAlignment(HorizontalAlignment.RIGHT);
 			cellStyle_Text_SL.setVerticalAlignment(VerticalAlignment.CENTER);
@@ -1098,7 +1135,7 @@ public class PContractAPI {
 //			cellStyle_Text_SL.setBorderLeft(BorderStyle.MEDIUM);
 			cellStyle_Text_SL.setBorderRight(BorderStyle.DOTTED);
 			cellStyle_Text_SL.setDataFormat(3);
-			
+
 			XSSFCellStyle cellStyle_Text_SL_center_value0 = workbook.createCellStyle();
 			cellStyle_Text_SL_center_value0.setAlignment(HorizontalAlignment.CENTER);
 			cellStyle_Text_SL_center_value0.setVerticalAlignment(VerticalAlignment.CENTER);
@@ -1111,7 +1148,7 @@ public class PContractAPI {
 //			cellStyle_Text_SL_center_value0.setBorderLeft(BorderStyle.MEDIUM);
 			cellStyle_Text_SL_center_value0.setBorderRight(BorderStyle.DOTTED);
 			cellStyle_Text_SL_center_value0.setDataFormat(3);
-			
+
 			XSSFCellStyle cellStyle_Text_SL_tong = workbook.createCellStyle();
 			cellStyle_Text_SL_tong.setAlignment(HorizontalAlignment.RIGHT);
 			cellStyle_Text_SL_tong.setVerticalAlignment(VerticalAlignment.CENTER);
@@ -1124,7 +1161,7 @@ public class PContractAPI {
 //			cellStyle_Text_SL_tong.setBorderLeft(BorderStyle.MEDIUM);
 			cellStyle_Text_SL_tong.setBorderRight(BorderStyle.MEDIUM);
 			cellStyle_Text_SL_tong.setDataFormat(3);
-			
+
 			XSSFCellStyle cellStyle_Text_Tong = workbook.createCellStyle();
 			cellStyle_Text_Tong.setAlignment(HorizontalAlignment.CENTER);
 			cellStyle_Text_Tong.setVerticalAlignment(VerticalAlignment.CENTER);
@@ -1136,7 +1173,7 @@ public class PContractAPI {
 			cellStyle_Text_Tong.setBorderBottom(BorderStyle.MEDIUM);
 			cellStyle_Text_Tong.setBorderLeft(BorderStyle.MEDIUM);
 			cellStyle_Text_Tong.setBorderRight(BorderStyle.THIN);
-			
+
 			XSSFCellStyle cellStyle_Text_Tong_SL = workbook.createCellStyle();
 			cellStyle_Text_Tong_SL.setAlignment(HorizontalAlignment.RIGHT);
 			cellStyle_Text_Tong_SL.setVerticalAlignment(VerticalAlignment.CENTER);
@@ -1149,7 +1186,7 @@ public class PContractAPI {
 //			cellStyle_Text_Tong_SL.setBorderLeft(BorderStyle.MEDIUM);
 			cellStyle_Text_Tong_SL.setBorderRight(BorderStyle.DOTTED);
 			cellStyle_Text_Tong_SL.setDataFormat(3);
-			
+
 			XSSFCellStyle cellStyle_Text_Tong_tong = workbook.createCellStyle();
 			cellStyle_Text_Tong_tong.setAlignment(HorizontalAlignment.RIGHT);
 			cellStyle_Text_Tong_tong.setVerticalAlignment(VerticalAlignment.CENTER);
@@ -1162,7 +1199,7 @@ public class PContractAPI {
 			cellStyle_Text_Tong_tong.setBorderLeft(BorderStyle.THIN);
 			cellStyle_Text_Tong_tong.setBorderRight(BorderStyle.MEDIUM);
 			cellStyle_Text_Tong_tong.setDataFormat(3);
-			
+
 			//
 			XSSFCellStyle cellStyle_Text_Medium_all_center = workbook.createCellStyle();
 			cellStyle_Text_Medium_all_center.setAlignment(HorizontalAlignment.CENTER);
@@ -1175,7 +1212,7 @@ public class PContractAPI {
 			cellStyle_Text_Medium_all_center.setBorderBottom(BorderStyle.THIN);
 			cellStyle_Text_Medium_all_center.setBorderLeft(BorderStyle.THIN);
 			cellStyle_Text_Medium_all_center.setBorderRight(BorderStyle.THIN);
-			
+
 			XSSFCellStyle cellStyle_Text_Medium_all_left = workbook.createCellStyle();
 			cellStyle_Text_Medium_all_left.setAlignment(HorizontalAlignment.LEFT);
 			cellStyle_Text_Medium_all_left.setVerticalAlignment(VerticalAlignment.CENTER);
@@ -1187,7 +1224,7 @@ public class PContractAPI {
 			cellStyle_Text_Medium_all_left.setBorderBottom(BorderStyle.THIN);
 			cellStyle_Text_Medium_all_left.setBorderLeft(BorderStyle.THIN);
 			cellStyle_Text_Medium_all_left.setBorderRight(BorderStyle.THIN);
-			
+
 			XSSFCellStyle cellStyle_Text_Medium_all_right = workbook.createCellStyle();
 			cellStyle_Text_Medium_all_right.setAlignment(HorizontalAlignment.RIGHT);
 			cellStyle_Text_Medium_all_right.setVerticalAlignment(VerticalAlignment.CENTER);
@@ -1199,7 +1236,7 @@ public class PContractAPI {
 			cellStyle_Text_Medium_all_right.setBorderBottom(BorderStyle.THIN);
 			cellStyle_Text_Medium_all_right.setBorderLeft(BorderStyle.THIN);
 			cellStyle_Text_Medium_all_right.setBorderRight(BorderStyle.THIN);
-			
+
 			XSSFCellStyle cellStyle_Text_Medium_noBottom = workbook.createCellStyle();
 			cellStyle_Text_Medium_noBottom.setAlignment(HorizontalAlignment.CENTER);
 			cellStyle_Text_Medium_noBottom.setVerticalAlignment(VerticalAlignment.CENTER);
@@ -1211,7 +1248,7 @@ public class PContractAPI {
 			cellStyle_Text_Medium_noBottom.setBorderBottom(BorderStyle.DOTTED);
 			cellStyle_Text_Medium_noBottom.setBorderLeft(BorderStyle.THIN);
 			cellStyle_Text_Medium_noBottom.setBorderRight(BorderStyle.THIN);
-			
+
 			XSSFCellStyle cellStyle_Text_Medium_noLeft = workbook.createCellStyle();
 			cellStyle_Text_Medium_noLeft.setAlignment(HorizontalAlignment.CENTER);
 			cellStyle_Text_Medium_noLeft.setVerticalAlignment(VerticalAlignment.CENTER);
@@ -1223,7 +1260,7 @@ public class PContractAPI {
 			cellStyle_Text_Medium_noLeft.setBorderBottom(BorderStyle.THIN);
 			cellStyle_Text_Medium_noLeft.setBorderLeft(BorderStyle.DOTTED);
 			cellStyle_Text_Medium_noLeft.setBorderRight(BorderStyle.THIN);
-			
+
 			XSSFCellStyle cellStyle_Text_Medium_noRight = workbook.createCellStyle();
 			cellStyle_Text_Medium_noRight.setAlignment(HorizontalAlignment.CENTER);
 			cellStyle_Text_Medium_noRight.setVerticalAlignment(VerticalAlignment.CENTER);
@@ -1235,7 +1272,7 @@ public class PContractAPI {
 			cellStyle_Text_Medium_noRight.setBorderBottom(BorderStyle.THIN);
 			cellStyle_Text_Medium_noRight.setBorderLeft(BorderStyle.THIN);
 			cellStyle_Text_Medium_noRight.setBorderRight(BorderStyle.DOTTED);
-			
+
 			XSSFCellStyle cellStyle_Text_Medium_noTop = workbook.createCellStyle();
 			cellStyle_Text_Medium_noTop.setAlignment(HorizontalAlignment.CENTER);
 			cellStyle_Text_Medium_noTop.setVerticalAlignment(VerticalAlignment.CENTER);
@@ -1247,7 +1284,7 @@ public class PContractAPI {
 			cellStyle_Text_Medium_noTop.setBorderBottom(BorderStyle.THIN);
 			cellStyle_Text_Medium_noTop.setBorderLeft(BorderStyle.THIN);
 			cellStyle_Text_Medium_noTop.setBorderRight(BorderStyle.THIN);
-			
+
 			XSSFCellStyle cellStyle_Text_Medium_bottom = workbook.createCellStyle();
 			cellStyle_Text_Medium_bottom.setAlignment(HorizontalAlignment.CENTER);
 			cellStyle_Text_Medium_bottom.setVerticalAlignment(VerticalAlignment.CENTER);
@@ -1259,7 +1296,7 @@ public class PContractAPI {
 			cellStyle_Text_Medium_bottom.setBorderBottom(BorderStyle.THIN);
 //			cellStyle_Text_Medium_bottom.setBorderLeft(BorderStyle.THIN);
 //			cellStyle_Text_Medium_bottom.setBorderRight(BorderStyle.THIN);
-			
+
 			XSSFCellStyle cellStyle_Text_Medium_bottom_right = workbook.createCellStyle();
 			cellStyle_Text_Medium_bottom_right.setAlignment(HorizontalAlignment.CENTER);
 			cellStyle_Text_Medium_bottom_right.setVerticalAlignment(VerticalAlignment.CENTER);
@@ -1271,41 +1308,41 @@ public class PContractAPI {
 			cellStyle_Text_Medium_bottom_right.setBorderBottom(BorderStyle.THIN);
 //			cellStyle_Text_Medium_bottom_right.setBorderLeft(BorderStyle.THIN);
 			cellStyle_Text_Medium_bottom_right.setBorderRight(BorderStyle.THIN);
-			
+
 			try {
 				//////// GHI BANG DANH SACH MAU CO THEO SAN PHAM, PO, SHIPDATE
 				Integer colNumber = 0;
-				
+
 				// Lay ten don hang, khach hang,
 				String donHang = pcontract.getContractcode() == null ? "" : pcontract.getContractcode();
 				String khachHang = pcontract.getBuyercode() == null ? "" : pcontract.getBuyercode();
-				
+
 				// Ghi ten don hang, khach hang
 				Row row_2 = sheet.getRow(1);
 				Cell cell_C2 = row_2.getCell(ColumnExcel.C);
 				cell_C2.setCellValue(maHang);
 				Cell cell_P2 = row_2.getCell(ColumnExcel.P);
 				cell_P2.setCellValue(khachHang);
-				
+
 				Row row_3 = sheet.getRow(2);
 				Cell cell_C3 = row_3.getCell(ColumnExcel.C);
 				cell_C3.setCellValue(donHang);
-				
+
 				// Lay danh sach co san pham
 				Map<Integer, List<String>> map_size = new HashMap<Integer, List<String>>();
 				for(PContractProductSKUBinding binding : pcontractProductSKUBinding_list) {
 					String coSP = binding.getCoSanPham();
 //					Long sizeId = binding.getSizeId();
 					Integer sort_size = binding.getSort_size();
-					
+
 					List<String> values = new ArrayList<String>();
 					values.add(coSP);
-					
+
 					if(!map_size.containsKey(sort_size)) {
 						map_size.put(sort_size, values);
 					}
 				}
-				
+
 				// sort ds map co san pham
 				List<Integer> keys = new ArrayList<>(map_size.keySet());
 //				List<List<String>> values = new ArrayList<>(map_size.values());
@@ -1317,7 +1354,7 @@ public class PContractAPI {
 //				for(Integer i = 0; i <= 20; i++) {
 //					newKeys.add(keys.get(i));
 //				}
-				
+
 				// Ghi danh sach co san pham
 				Row row_4 = sheet.getRow(3);
 				colNumber = ColumnExcel.C;
@@ -1337,7 +1374,7 @@ public class PContractAPI {
 					}
 				}
 				colNumber=0;
-				
+
 				// ghi du lieu vao cac row
 				int rowNumber = 4; // starting row
 				int stt = 1; // cot STT
@@ -1353,12 +1390,12 @@ public class PContractAPI {
 					}else {
 						pONgayGiao = binding.getPONgayGiao2();
 					}
-					
+
 					if(!maSanPhamPONgayGiao.equals(maSanPhamPONgayGiao_current)) {
 						rowNumber++;
 						mauSanPham_current = "";
 						maSanPhamPONgayGiao_current = maSanPhamPONgayGiao;
-						
+
 						// them dong ma san pham moi
 						Row row_ma = sheet.createRow(rowNumber);
 						Cell cell_A_ma = row_ma.createCell(ColumnExcel.A);
@@ -1376,7 +1413,7 @@ public class PContractAPI {
 						Cell cell_W_ma = row_ma.createCell(ColumnExcel.W);
 //						cell_W_ma.setCellValue("");
 						cell_W_ma.setCellStyle(cellStyle_Tong_Right);
-						
+
 						// tang rowNumber de them dong thong tin mau co
 						rowNumber++;
 						Row row = sheet.createRow(rowNumber);
@@ -1397,7 +1434,7 @@ public class PContractAPI {
 						cell_W.setCellStyle(cellStyle_Tong_Right);
 						cell_W.setCellFormula("SUM(C" + (rowNumber+1) + ":V" + (rowNumber+1) + ")");
 						mauSanPham_current = mauSanPham;
-						
+
 						// set thong tin cho cot SL cua co tuong ung
 						List<String> listString = map_size.get(binding.getSort_size());
 //						String coSP = listString.get(0);
@@ -1440,7 +1477,7 @@ public class PContractAPI {
 //							cell_W.setCellValue("");
 							cell_W.setCellStyle(cellStyle_Tong_Right);
 							cell_W.setCellFormula("SUM(C" + (rowNumber+1) + ":V" + (rowNumber+1) + ")");
-							
+
 							// set thong tin cho cot SL cua co tuong ung
 							List<String> listString = map_size.get(binding.getSort_size());
 //							String coSP = listString.get(0);
@@ -1454,7 +1491,7 @@ public class PContractAPI {
 						}
 					}
 				}
-				
+
 				// Them dong tinh tong duoi
 				rowNumber++;
 				Row row_tong_duoi = sheet.createRow(rowNumber);
@@ -1534,7 +1571,7 @@ public class PContractAPI {
 				Cell cell_W = row_tong_duoi.createCell(ColumnExcel.W);
 				cell_W.setCellFormula("SUM(C" + (rowNumber+1) + ":V" + (rowNumber+1) + ")");
 				cell_W.setCellStyle(cellStyle_Tong_Bottom_Tong);
-				
+
 				//////// GHI BANG DANH SACH MAU CO THEO MAU
 				// dong title danh sach thu 2
 				rowNumber = rowNumber+2;
@@ -1542,7 +1579,7 @@ public class PContractAPI {
 				cell_B = row.createCell(ColumnExcel.B);
 				cell_B.setCellValue("MÀU CHÍNH");
 				cell_B.setCellStyle(cellStyle_Text_Title);
-				
+
 				colNumber = 1;
 				for(Integer i = ColumnExcel.C; i <= ColumnExcel.V; i++) {
 					Cell cell = row.createCell(i);
@@ -1550,11 +1587,11 @@ public class PContractAPI {
 					cell.setCellStyle(cellStyle_Text_Title_Number);
 					colNumber++;
 				}
-				
+
 				cell_W = row.createCell(ColumnExcel.W);
 				cell_W.setCellValue("SL");
 				cell_W.setCellStyle(cellStyle_Text_Title_Tong);
-				
+
 				// them ca dong mau co vao danh sach thu 2
 //				rowNumber++;
 				Integer danhSach2StartAt = rowNumber;
@@ -1566,11 +1603,11 @@ public class PContractAPI {
 					if(po_CodeExtra != null && !po_CodeExtra.trim().equals("")) {
 						mauSanPham = mauSanPham + "-" + po_CodeExtra;
 					}
-					
+
 					if(!mauMaSanPham.equals(MauMaSanPham_current)) {
 						rowNumber++;
 						MauMaSanPham_current = mauMaSanPham;
-						
+
 						// them dong ma san pham moi
 						row = sheet.createRow(rowNumber);
 						cell_B = row.createCell(ColumnExcel.B);
@@ -1585,7 +1622,7 @@ public class PContractAPI {
 						cell_W = row.createCell(ColumnExcel.W);
 //						cell_W.setCellValue("");
 						cell_W.setCellStyle(cellStyle_Text_SL_tong);
-						
+
 						// tang rowNumber de them dong thong tin mau co
 						cell_B = row.createCell(ColumnExcel.B);
 //						cell_B.setCellValue(mauMaSanPham);
@@ -1600,7 +1637,7 @@ public class PContractAPI {
 //						cell_W.setCellValue("");
 						cell_W.setCellStyle(cellStyle_Tong_Right);
 						cell_W.setCellFormula("SUM(C" + (rowNumber+1) + ":V" + (rowNumber+1) + ")");
-						
+
 						// set thong tin cho cot SL cua co tuong ung
 						List<String> listString = map_size.get(binding.getSort_size());
 //						String coSP = listString.get(0);
@@ -1632,7 +1669,7 @@ public class PContractAPI {
 						}
 					}
 				}
-				
+
 				// set format
 //				System.out.println(danhSach2StartAt);
 //				System.out.println(rowNumber);
@@ -1649,14 +1686,14 @@ public class PContractAPI {
 						}
 					}
 				}
-				
+
 				// dong tong danh sach 2
 				rowNumber = rowNumber+1;
 				row = sheet.createRow(rowNumber);
 				cell_B = row.createCell(ColumnExcel.B);
 				cell_B.setCellValue("Tổng");
 				cell_B.setCellStyle(cellStyle_Text_Tong);
-				
+
 				for(Integer i = ColumnExcel.C; i <= ColumnExcel.V; i++) {
 					Cell cell_tong_SL = row.createCell(i);
 //					cell_tong_SL.setCellValue("");
@@ -1727,7 +1764,7 @@ public class PContractAPI {
 				cell_W = row.createCell(ColumnExcel.W);
 				cell_W.setCellFormula("SUM(C" + (rowNumber+1) + ":V" + (rowNumber+1) + ")");
 				cell_W.setCellStyle(cellStyle_Text_Tong_tong);
-				
+
 				// TO SX
 				rowNumber=rowNumber+1;
 				row = sheet.createRow(rowNumber);
@@ -1735,14 +1772,14 @@ public class PContractAPI {
 					Cell cell = row.createCell(i);
 					cell.setCellStyle(cellStyle_Text_Medium_all_center);
 				}
-				
+
 				sheet.addMergedRegion(new CellRangeAddress(rowNumber,rowNumber,2,5));
 				sheet.addMergedRegion(new CellRangeAddress(rowNumber,rowNumber,6,9));
 				sheet.addMergedRegion(new CellRangeAddress(rowNumber,rowNumber,10,13));
 				sheet.addMergedRegion(new CellRangeAddress(rowNumber,rowNumber,14,16));
 				sheet.addMergedRegion(new CellRangeAddress(rowNumber,rowNumber,17,19));
 				sheet.addMergedRegion(new CellRangeAddress(rowNumber,rowNumber,20,22));
-				
+
 				cell_B = row.getCell(ColumnExcel.B);
 				cell_B.setCellValue("Tổ SX");
 				Cell cell_C = row.getCell(ColumnExcel.C);
@@ -1755,7 +1792,7 @@ public class PContractAPI {
 				cell_R.setCellValue("Kết thúc");
 				Cell cell_U = row.getCell(ColumnExcel.U);
 				cell_U.setCellValue("Ghi chú");
-				
+
 				//
 				rowNumber=rowNumber+1;
 				row = sheet.createRow(rowNumber);
@@ -1769,7 +1806,7 @@ public class PContractAPI {
 				sheet.addMergedRegion(new CellRangeAddress(rowNumber,rowNumber,14,16));
 				sheet.addMergedRegion(new CellRangeAddress(rowNumber,rowNumber,17,19));
 				sheet.addMergedRegion(new CellRangeAddress(rowNumber,rowNumber,20,22));
-				
+
 				//
 				rowNumber=rowNumber+1;
 				row = sheet.createRow(rowNumber);
@@ -1783,7 +1820,7 @@ public class PContractAPI {
 				sheet.addMergedRegion(new CellRangeAddress(rowNumber,rowNumber,14,16));
 				sheet.addMergedRegion(new CellRangeAddress(rowNumber,rowNumber,17,19));
 				sheet.addMergedRegion(new CellRangeAddress(rowNumber,rowNumber,20,22));
-				
+
 				// MUC KHOAN
 				rowNumber=rowNumber+1;
 				row = sheet.createRow(rowNumber);
@@ -1804,7 +1841,7 @@ public class PContractAPI {
 					}
 				}
 				sheet.addMergedRegion(new CellRangeAddress(rowNumber,rowNumber,2,3));
-				
+
 				rowNumber=rowNumber+1;
 				row = sheet.createRow(rowNumber);
 				for(Integer i=1; i<ColumnExcel.X; i++) {
@@ -1821,7 +1858,7 @@ public class PContractAPI {
 					}
 				}
 				sheet.addMergedRegion(new CellRangeAddress(rowNumber,rowNumber,2,3));
-				
+
 				rowNumber=rowNumber+1;
 				row = sheet.createRow(rowNumber);
 				for(Integer i=1; i<ColumnExcel.X; i++) {
@@ -1834,7 +1871,7 @@ public class PContractAPI {
 						cell.setCellStyle(cellStyle_Text_Medium_all_center);
 					}
 				}
-				
+
 				// KY NHAN
 				rowNumber=rowNumber+2;
 				row = sheet.createRow(rowNumber);
@@ -1847,7 +1884,7 @@ public class PContractAPI {
 					}
 				}
 				sheet.addMergedRegion(new CellRangeAddress(rowNumber,rowNumber,10,13));
-				
+
 				rowNumber=rowNumber+1;
 				row = sheet.createRow(rowNumber);
 				for(Integer i=1; i<ColumnExcel.X; i++) {
@@ -1861,7 +1898,7 @@ public class PContractAPI {
 						cell.setCellValue("Duyệt");
 					}
 				}
-				
+
 				rowNumber=rowNumber+1;
 				row = sheet.createRow(rowNumber);
 				for(Integer i=1; i<ColumnExcel.X; i++) {
@@ -1873,7 +1910,7 @@ public class PContractAPI {
 						cell.setCellValue("Tổ cắt");
 					}
 				}
-				
+
 				rowNumber=rowNumber+1;
 				row = sheet.createRow(rowNumber);
 				for(Integer i=1; i<ColumnExcel.X; i++) {
@@ -1885,7 +1922,7 @@ public class PContractAPI {
 						cell.setCellValue("Kho");
 					}
 				}
-				
+
 				rowNumber=rowNumber+1;
 				row = sheet.createRow(rowNumber);
 				for(Integer i=1; i<ColumnExcel.X; i++) {
@@ -1897,7 +1934,7 @@ public class PContractAPI {
 						cell.setCellValue("H.Thiện");
 					}
 				}
-				
+
 				rowNumber=rowNumber+1;
 				row = sheet.createRow(rowNumber);
 				for(Integer i=1; i<ColumnExcel.X; i++) {
@@ -1944,7 +1981,7 @@ public class PContractAPI {
 				FileCopy.delete();
 				file.delete();
 			}
-			
+
 			// response
 //			response.data = result;
 //			response.data = new ArrayList<PContract_PO>();

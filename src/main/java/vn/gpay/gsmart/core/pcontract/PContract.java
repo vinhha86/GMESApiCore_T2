@@ -4,6 +4,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -24,6 +25,7 @@ import vn.gpay.gsmart.core.contractbuyer.ContractBuyer;
 import vn.gpay.gsmart.core.markettype.MarketType;
 import vn.gpay.gsmart.core.org.Org;
 import vn.gpay.gsmart.core.pcontract_po.PContract_PO;
+import vn.gpay.gsmart.core.pcontractmarket.PContractMarket;
 import vn.gpay.gsmart.core.pcontractproduct.PContractProduct;
 import vn.gpay.gsmart.core.pcontracttype.PContractType;
 import vn.gpay.gsmart.core.season.Season;
@@ -63,7 +65,26 @@ public class PContract implements Serializable {/**
 	private Long orgshowid_link;
 	private Long marketypeid_link;
 	private Long contractbuyerid_link;
-	
+
+	@NotFound(action = NotFoundAction.IGNORE)
+	@OneToMany
+	@JoinColumn(name="pcontractid_link",insertable=false,updatable =false)
+	private List<PContractProduct> products = new ArrayList<PContractProduct>();
+
+	@NotFound(action = NotFoundAction.IGNORE)
+	@ManyToOne
+	@JoinColumn(name="marketypeid_link",insertable=false,updatable =false)
+	private MarketType markettype;
+
+	@Transient
+	public String getMarketTypeName() {
+		if(markettype != null) {
+			return markettype.getName();
+		}
+		return "";
+	}
+
+
 	@NotFound(action = NotFoundAction.IGNORE)
 	@ManyToOne
     @JoinColumn(name="contracttypeid_link",insertable=false,updatable =false)
@@ -77,18 +98,6 @@ public class PContract implements Serializable {/**
 		return "";
 	}
 	
-	@NotFound(action = NotFoundAction.IGNORE)
-	@ManyToOne
-    @JoinColumn(name="marketypeid_link",insertable=false,updatable =false)
-    private MarketType markettype;
-	
-	@Transient
-	public String getMarketTypeName() {
-		if(markettype != null) {
-			return markettype.getName();
-		}
-		return "";
-	}
 	
 	@NotFound(action = NotFoundAction.IGNORE)
 	@ManyToOne
@@ -424,10 +433,10 @@ public class PContract implements Serializable {/**
     @JoinColumn(name="pcontractid_link",insertable=false,updatable =false)
     private List<PContract_PO> pos = new ArrayList<PContract_PO>();
 	
-	@NotFound(action = NotFoundAction.IGNORE)
-	@OneToMany
-    @JoinColumn(name="pcontractid_link",insertable=false,updatable =false)
-    private List<PContractProduct> products = new ArrayList<PContractProduct>();
+//	@NotFound(action = NotFoundAction.IGNORE)
+//	@OneToMany
+//    @JoinColumn(name="pcontractid_link",insertable=false,updatable =false)
+//    private List<PContractProduct> products = new ArrayList<PContractProduct>();
 	
 	@Transient
 	public String getProductlist() {
