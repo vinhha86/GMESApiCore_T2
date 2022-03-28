@@ -1,26 +1,39 @@
 package vn.gpay.gsmart.core.api.timesheetinout;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
+
+import com.google.common.io.Files;
+import org.apache.poi.util.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import vn.gpay.gsmart.core.api.org.GetOrgById_response;
+import vn.gpay.gsmart.core.org.IOrgService;
+import vn.gpay.gsmart.core.security.GpayUserOrg;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import vn.gpay.gsmart.core.api.timesheet_absence.BaoCaoNS_Excel;
+import vn.gpay.gsmart.core.api.timesheet_absence.TimesheetAbsenceAPI;
+import vn.gpay.gsmart.core.security.IGpayUserOrgService;
+import vn.gpay.gsmart.core.org.OrgServiceImpl;
+import vn.gpay.gsmart.core.org.Org;
 import vn.gpay.gsmart.core.personel.IPersonnel_Service;
 import vn.gpay.gsmart.core.personel.Personel;
 import vn.gpay.gsmart.core.timesheetinout.TimeSheetDaily;
@@ -30,11 +43,20 @@ import vn.gpay.gsmart.core.utils.AtributeFixValues;
 import vn.gpay.gsmart.core.utils.HttpPost;
 import vn.gpay.gsmart.core.utils.ResponseMessage;
 
+import javax.servlet.http.HttpServletRequest;
+
+//@Autowired
+//IGpayUserOrgService userOrgService;
+
+import static vn.gpay.gsmart.core.org.IOrgService.*;
+
 @RestController
 @RequestMapping("/api/v1/timesheetinout")
 public class TimeSheetInOutAPI {
 	@Autowired
 	IPersonnel_Service personService;
+	@Autowired
+	IOrgService orgService;
 
 	// lấy tất cả danh sách
 	@RequestMapping(value = "/getall", method = RequestMethod.POST)
@@ -191,7 +213,7 @@ public class TimeSheetInOutAPI {
 //				} else {
 //					list_remove.add(daily);
 //				}
-				
+
 //				Personel person = personService.getPersonelBycode_orgmanageid_link(daily.getPersonnel_code(),orgid_link);
 //				if(person!=null) {
 //					daily.setFullname(person.getFullname());
@@ -307,9 +329,10 @@ public class TimeSheetInOutAPI {
 			appParNode.put("year", year);
 			appParNode.put("orgid_link", orgid_link);
 			String jsonReq = objectMapper.writeValueAsString(appParNode);
-
+//            System.out.print(jsonReq);
 			HttpPost http = new HttpPost();
 			String result = http.getDataFromHttpPost(jsonReq, urlPost);
+//			System.out.print(result);
 			if ("\"ERR\"".equals(result))
 				response.setRespcode(ResponseMessage.KEY_RC_EXCEPTION);
 			else {
@@ -328,6 +351,84 @@ public class TimeSheetInOutAPI {
 		return new ResponseEntity<GetTimeSheetMonthResponse>(response, HttpStatus.OK);
 
 	}
+
+
+	private final Logger LOGGER = LoggerFactory.getLogger(TimeSheetInOutAPI.class);
+	@RequestMapping (value = "/exportExcelBaoCao_Cong", method = RequestMethod.POST)
+	public ResponseEntity<BaoCaoCong_Excel_response> downloadBaoCaoCong(@RequestBody BaoCaoCong_Excel_request request,
+																		HttpServletRequest servletRequest) {
+		BaoCaoCong_Excel_response response = new BaoCaoCong_Excel_response();
+//		System.out.println("Ok Ok");
+		try {
+//			System.out.println("Ok 1");
+			long orgid_link = request.orgid_link;
+			GetOrgById_response org = new GetOrgById_response();
+			org.data = orgService.findOne(orgid_link);
+			String orgName= org.data.getName();
+
+			int month = request.month;
+			int year = request.year;
+			System.out.println(year);
+			String folderPath = servletRequest.getServletContext().getRealPath("report/Export/BaoCaoCong");
+			File uploadFolder = new File(folderPath);
+
+			if (!uploadFolder.exists()) {
+				boolean created = uploadFolder.mkdirs();
+			}
+			Date current_time = new Date();
+			File FileExport = new File(uploadFolder + "/BaoCaoCong_month.xlsx");
+
+			File FileCopy = new File(uploadFolder + "/Template_timesheet_daily_" + current_time.getTime() + ".xlsx"); // copy cua
+			// template
+			// de chinh
+			// sua tren
+			// do
+			File file = new File(uploadFolder + "/BangBaoCaoCong_month" + request.month + "_" + request.orgid_link + "_" + current_time.getTime() + ".xlsx"); // file de export
+			// tao file copy cua template
+			Files.copy(FileExport, FileCopy);
+			FileInputStream is_filecopy = new FileInputStream(FileCopy);
+//			System.out.println("Ok 1");
+			String urlPost = AtributeFixValues.url_timesheet + "/timesheet/get_timesheet_month";
+			String fileName = "BaoCaoNS_" + "month"+ month+"year"+year + ".xlsx";
+			String excelFilePath = folderPath + fileName;
+//			System.out.println("Ok 2");
+			ObjectMapper objectMapper = new ObjectMapper();
+			ObjectNode appParNode = objectMapper.createObjectNode();
+
+			// truyen param theo
+			appParNode.put("month", month);
+			appParNode.put("year", year);
+			appParNode.put("orgid_link", orgid_link);
+			String jsonReq = objectMapper.writeValueAsString(appParNode);
+//			System.out.println("Ok 3");
+			HttpPost http = new HttpPost();
+//			System.out.println("Ok 4");
+			String result = http.getDataFromHttpPost(jsonReq, urlPost);
+//			HttpPost http = new HttpPost();
+//			System.out.println("Ok 5");
+			List<TimeSheetMonth> listOfData = objectMapper.readValue(result, new TypeReference<List<TimeSheetMonth>>(){});
+
+//			System.out.println(result);
+			File excelFile = BaoCaoCong_Excel.createBaoCaoCong(excelFilePath,listOfData,month,year,orgName,is_filecopy);
+			InputStream dataInputStream = new FileInputStream(excelFile);
+
+			response.setData(IOUtils.toByteArray(dataInputStream));
+			response.setRespcode(ResponseMessage.KEY_RC_SUCCESS);
+			response.setMessage(ResponseMessage.getMessage(ResponseMessage.KEY_RC_SUCCESS));
+
+			dataInputStream.close();
+
+			return ResponseEntity.ok(response);
+
+		}catch (Exception exception) {
+			LOGGER.error(exception.getMessage());
+			response.setData(null);
+			response.setRespcode(ResponseMessage.KEY_RC_APPROVE_FAIL);
+			response.setMessage(ResponseMessage.getMessage(ResponseMessage.KEY_RC_APPROVE_FAIL));
+			return ResponseEntity.badRequest().body(response);
+		}
+	}
+
 	
 	@RequestMapping(value = "/update_daily", method = RequestMethod.POST)
 	public ResponseEntity<updateDailyResponse> updateDaily(@RequestBody updateDailyRequest entity) {
