@@ -65,25 +65,27 @@ public class PContract implements Serializable {/**
 	private Long orgshowid_link;
 	private Long marketypeid_link;
 	private Long contractbuyerid_link;
+	
+	@Transient 
+	private String marketTypeString;
 
 	@NotFound(action = NotFoundAction.IGNORE)
 	@OneToMany
 	@JoinColumn(name="pcontractid_link",insertable=false,updatable =false)
 	private List<PContractProduct> products = new ArrayList<PContractProduct>();
 
-	@NotFound(action = NotFoundAction.IGNORE)
-	@ManyToOne
-	@JoinColumn(name="marketypeid_link",insertable=false,updatable =false)
-	private MarketType markettype;
+//	@NotFound(action = NotFoundAction.IGNORE)
+//	@ManyToOne
+//	@JoinColumn(name="marketypeid_link",insertable=false,updatable =false)
+//	private MarketType markettype;
 
-	@Transient
-	public String getMarketTypeName() {
-		if(markettype != null) {
-			return markettype.getName();
-		}
-		return "";
-	}
-
+//	@Transient
+//	public String getMarketTypeName() {
+//		if(markettype != null) {
+//			return markettype.getName();
+//		}
+//		return "";
+//	}
 
 	@NotFound(action = NotFoundAction.IGNORE)
 	@ManyToOne
@@ -476,5 +478,14 @@ public class PContract implements Serializable {/**
 		} else
 			return false;
 	}
+
+	public String getMarketTypeString() {
+		return marketTypeString;
+	}
+
+	public void setMarketTypeString(String marketTypeString) {
+		this.marketTypeString = marketTypeString;
+	}
+	
 	
 }

@@ -157,6 +157,8 @@ public class PContractAPI {
 	ISKU_Service skuService;
 	@Autowired
 	IProductPairingService productPairingService;
+	@Autowired
+	IPContractMarketService pcontractMarketService;
 
 	@RequestMapping(value = "/create", method = RequestMethod.POST)
 	public ResponseEntity<PContract_create_response> PContractCreate(@RequestBody PContract_create_request entity,
@@ -522,6 +524,33 @@ public class PContractAPI {
 //				}
 //				list.removeAll(list_remove);
 //			}
+			
+//			for(PContract pcontract : list) {
+//				Long marketypeid_link = pcontract.getMarketypeid_link();
+//				List<PContractMarket> pcontractMarketList = pcontractMarketService.get_by_pcontractid_link_marketid_link(pcontract.getId(), marketypeid_link);
+//				if(pcontractMarketList.size() == 0) {
+//					PContractMarket newPContractMarket = new PContractMarket();
+//					newPContractMarket.setMarketid(marketypeid_link);
+//					newPContractMarket.setPcontractid(pcontract.getId());
+//					pcontractMarketService.save(newPContractMarket);
+//				}
+//			}
+			
+			for(PContract pcontract : list) {
+				List<PContractMarket> pcontractMarketList = pcontractMarketService.get_by_pcontractid_link(pcontract.getId());
+				String allMarketString = "";
+				for(PContractMarket pcontractMarket : pcontractMarketList) {
+					String marketString = pcontractMarket.getMarketTypeName();
+					if(marketString != null && !marketString.trim().equals("")) {
+						if(allMarketString.equals("")) {
+							allMarketString += marketString;
+						}else {
+							allMarketString += "; " + marketString;
+						}
+					}
+				}
+				pcontract.setMarketTypeString(allMarketString);
+			}
 			response.data = list;
 
 			response.setRespcode(ResponseMessage.KEY_RC_SUCCESS);
