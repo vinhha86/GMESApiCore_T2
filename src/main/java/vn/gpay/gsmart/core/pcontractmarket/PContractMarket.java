@@ -34,6 +34,14 @@ public class PContractMarket implements Serializable {
     @ManyToOne
     @JoinColumn(name = "marketid_link", insertable = false, updatable = false)
     private MarketType market;
+    
+	@Transient
+	public String getMarketTypeName() {
+		if(market != null) {
+			return market.getName();
+		}
+		return "";
+	}
 
     public PContractMarket() {
     }
