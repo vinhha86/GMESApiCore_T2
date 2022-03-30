@@ -2,7 +2,10 @@ package vn.gpay.gsmart.core.api.timesheetinout;
 
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.usermodel.IndexedColorMap;
 import org.apache.poi.xssf.usermodel.XSSFFont;
+import org.apache.poi.xssf.usermodel.XSSFFormulaEvaluator;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import vn.gpay.gsmart.core.timesheet_absence.TimesheetAbsence_Binding;
 import vn.gpay.gsmart.core.timesheetinout.TimeSheetMonth;
@@ -31,11 +34,11 @@ public class BaoCaoCong_Excel {
 
 //        System.out.println("oke 1");
         //// Setup
-        var workbook = new XSSFWorkbook(file);
+        XSSFWorkbook workbook = new XSSFWorkbook(file);
 //        var sheet = workbook.createSheet("Báo Cáo Công");
-        var sheet = workbook.getSheetAt(0);
-        var formulaEvaluator = workbook.getCreationHelper().createFormulaEvaluator();
-        var colorMap = workbook.getStylesSource().getIndexedColors();
+        XSSFSheet sheet = workbook.getSheetAt(0);
+        XSSFFormulaEvaluator formulaEvaluator = workbook.getCreationHelper().createFormulaEvaluator();
+        IndexedColorMap colorMap = workbook.getStylesSource().getIndexedColors();
 
         // Setup margin for print
 //        var printSetup = sheet.getPrintSetup();
@@ -190,16 +193,6 @@ public class BaoCaoCong_Excel {
 //        nghi.setCellStyle(headerTableStyle);
 //        sheet.addMergedRegion(new CellRangeAddress(2, 2, 11, 14));
 //
-//
-//
-//
-//
-//
-//
-//
-//
-//
-////        System.out.print("oke 2");
 //        rowNum++;
 //        Row header2TableRow =sheet.createRow(rowNum);
 //        CellStyle nullStyle = workbook.createCellStyle();
@@ -342,10 +335,6 @@ public class BaoCaoCong_Excel {
             Cell khongPhepData = newRow.createCell(14);
             khongPhepData.setCellStyle(normalDayStyle);
 
-
-
-
-
 //   truyền data vào cell
 //            cardinalNumberData.setCellValue(i + 1);
 
@@ -374,14 +363,16 @@ public class BaoCaoCong_Excel {
 
             if(data.getTime_working() == 0) gioCongData.setCellValue("-");
             else gioCongData.setCellValue((data.getTime_working()));
+            
+            //
+            if(data.getTime_over() == 0) lamThemData.setCellValue("-");
+            else lamThemData.setCellValue((data.getTime_over()));
 
-            if(data.getTime_plus() == 0) lamThemData.setCellValue("-");
-            else lamThemData.setCellValue((data.getTime_plus()));
+            if(data.getTime_plus() == 0) boSungData.setCellValue("-");
+            else boSungData.setCellValue((data.getTime_plus()));
+            //
 
-            if(data.getTime_over() == 0) boSungData.setCellValue("-");
-            else boSungData.setCellValue((data.getTime_over()));
-
-            if(data.getTime_sunday() == 0) chuNhatData.setCellValue("-");
+            if(data.getTime_sunday() == 0 ) chuNhatData.setCellValue("-");
             else chuNhatData.setCellValue((data.getTime_sunday()));
 
             if(data.getLunch() == 0) buaAnData.setCellValue("-");
@@ -429,7 +420,7 @@ public class BaoCaoCong_Excel {
         footerStyle.setBorderLeft(BorderStyle.THIN);
         footerStyle.setBorderRight(BorderStyle.THIN);
 
-        List<Cell> nullCell = new ArrayList<>(){{
+        List<Cell> nullCell = new ArrayList<Cell>(){{
             add(footerRow.createCell(0));
             add(footerRow.createCell(14));
         }};
@@ -463,7 +454,7 @@ public class BaoCaoCong_Excel {
         sumBoSung.setCellFormula(String.format("SUM(G%d:G%d)", firstRowDataTable + 1, lastRowDataTable + 1));
         formulaEvaluator.evaluateFormulaCell(sumBoSung);
         sumBoSung.setCellStyle(footerStyle);
-
+        
         Cell sumChuNhat = footerRow.createCell(7);
         sumChuNhat.setCellFormula(String.format("SUM(H%d:H%d)", firstRowDataTable + 1, lastRowDataTable + 1));
         formulaEvaluator.evaluateFormulaCell(sumChuNhat);
@@ -559,7 +550,7 @@ public class BaoCaoCong_Excel {
         sheet.addMergedRegion(new CellRangeAddress(rowNum, rowNum, 0, 14));
 //        System.out.println("oke oke");
         //// Write listOfData to workbook
-        var fileOutputStream = new FileOutputStream(excelFile);
+        FileOutputStream fileOutputStream = new FileOutputStream(excelFile);
         workbook.write(fileOutputStream);
         fileOutputStream.close();
         workbook.close();
