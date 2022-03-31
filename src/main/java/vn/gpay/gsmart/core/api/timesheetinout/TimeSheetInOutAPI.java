@@ -418,6 +418,7 @@ public class TimeSheetInOutAPI {
             response.setMessage(ResponseMessage.getMessage(ResponseMessage.KEY_RC_SUCCESS));
 
             dataInputStream.close();
+            FileCopy.delete();
 
             return ResponseEntity.ok(response);
 
