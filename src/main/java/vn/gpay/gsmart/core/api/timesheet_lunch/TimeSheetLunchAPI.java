@@ -1421,7 +1421,7 @@ public class TimeSheetLunchAPI {
 			response.setMessage(ResponseMessage.getMessage(ResponseMessage.KEY_RC_SUCCESS));
 
 			dataInputStream.close();
-//			boolean deleted = excelFile.delete();
+			boolean deleted = excelFile.delete();
 
 			return ResponseEntity.ok(response);
 		} catch (Exception exception) {
@@ -1499,7 +1499,7 @@ public class TimeSheetLunchAPI {
 			response.setMessage(ResponseMessage.getMessage(ResponseMessage.KEY_RC_SUCCESS));
 
 			dataInputStream.close();
-//			boolean deleted = excelFile.delete();
+			boolean deleted = excelFile.delete();
 
 			return ResponseEntity.ok(response);
 		} catch (Exception exception) {
@@ -1573,7 +1573,7 @@ public class TimeSheetLunchAPI {
 			response.setMessage(ResponseMessage.getMessage(ResponseMessage.KEY_RC_SUCCESS));
 
 			dataInputStream.close();
-//			boolean deleted = excelFile.delete();
+			boolean deleted = excelFile.delete();
 
 			return ResponseEntity.ok(response);
 		} catch (Exception exception) {
