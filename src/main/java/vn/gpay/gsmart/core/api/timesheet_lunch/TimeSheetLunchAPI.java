@@ -726,7 +726,6 @@ public class TimeSheetLunchAPI {
 				list = timeSheetLunchService.getByPersonnelDateAndShift(personnelid_link, workingdate,
 						timesheet_shift_type_id_link.intValue());
 
-				System.out.println(1);
 				if (list.size() > 0) {
 					TimeSheetLunch timeSheetLunch = list.get(0);
 					timeSheetLunch.setIsworking(isWorkingShift);
