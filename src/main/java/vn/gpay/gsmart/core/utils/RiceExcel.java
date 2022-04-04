@@ -2,9 +2,8 @@ package vn.gpay.gsmart.core.utils;
 
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
-import org.apache.poi.xssf.usermodel.XSSFColor;
-import org.apache.poi.xssf.usermodel.XSSFFont;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.poi.ss.util.RegionUtil;
+import org.apache.poi.xssf.usermodel.*;
 
 import java.awt.Color;
 import java.io.File;
@@ -14,8 +13,9 @@ import java.lang.reflect.Field;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.temporal.ChronoField;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public final class RiceExcel {
 
@@ -356,14 +356,14 @@ public final class RiceExcel {
         printSetup.setHeaderMargin(0.3);
         printSetup.setFooterMargin(0.3);
 
-        //// Setup width of column
+        //// Chỉnh sửa độ rộng các cột
         sheet.setColumnWidth(0, 1425);
         sheet.setColumnWidth(1, 4640);
         sheet.setColumnWidth(2, 3160);
         sheet.setColumnWidth(3, 2925);
         sheet.setColumnWidth(4, 4000);
 
-        //// Title part
+        //// Phần tiêu đề của phiếu
         int rowNum = 0;
         Row firstTitleRow = sheet.createRow(rowNum);
         CellStyle firstTitleStyle = workbook.createCellStyle();
@@ -429,7 +429,7 @@ public final class RiceExcel {
         forthTitleCell.setCellValue("ĐVT: Đồng");
         forthTitleCell.setCellStyle(forthTitleStyle);
 
-        //// Header table
+        //// Tiêu đề cho bảng
         rowNum++;
         Row headerTableRow = sheet.createRow(rowNum);
 
@@ -473,7 +473,7 @@ public final class RiceExcel {
         Row nullHeaderRow = sheet.createRow(rowNum);
         for (int i = 0; i < 5; i++) nullHeaderRow.createCell(i).setCellStyle(headerTableStyle);
 
-        //// Table data
+        //// Vẽ bảng
         CellStyle normalDayStyle = workbook.createCellStyle();
         DataFormat normalDayFormat = workbook.createDataFormat();
         XSSFFont normalDayFont = workbook.createFont();
@@ -542,7 +542,7 @@ public final class RiceExcel {
         }
         int lastRowDataTable = rowNum;
 
-        //// Footer table
+        //// Đuôi bảng
         rowNum++;
         Row footerRow = sheet.createRow(rowNum);
 
@@ -584,7 +584,7 @@ public final class RiceExcel {
         formulaEvaluator.evaluateFormulaCell(sumBill);
         sumBill.setCellStyle(footerStyle);
 
-        //// Signature
+        //// Chữ ký
         rowNum++;
         Row billToTextRow = sheet.createRow(rowNum);
 
@@ -952,6 +952,335 @@ public final class RiceExcel {
         fileOutputStream.close();
         workbook.close();
         return excelFile;
+    }
+
+    public static File exportComCa(String filePath, String factoryName, String time, HashMap<Date, HashMap<String, Integer>> allData) throws IOException {
+        File excelFile = new File(filePath);
+
+        XSSFWorkbook workbook = new XSSFWorkbook();
+        XSSFSheet sheet = workbook.createSheet("Cơm ca");
+
+        // Lấy dữ liệu mẫu và tính dòng cho bảng
+        Map.Entry<Date, HashMap<String, Integer>> tempMap = allData.entrySet().iterator().next();
+        HashMap<String, Integer> tempData = tempMap.getValue();
+        int tableRow = (int) Math.ceil(tempData.size() * 1.0 / 2);
+        int allFieldRow = tableRow + 11;
+
+        // Tạo sẵn các dòng cho file
+        for (int i = 0; i < allFieldRow * 2; i++) sheet.createRow(i);
+
+        // Tạo các bảng trong file
+        int counter = 0;
+        for (Date date : allData.keySet()) {
+            int startRow = (counter % 2 == 0) ? 0 : allFieldRow;
+
+            createTable(workbook, sheet, startRow, 6 * (counter / 2),
+                    factoryName, time,
+                    date, allData.get(date));
+
+            counter++;
+        }
+
+        // Đưa dữ liệu vào trong file excel
+        FileOutputStream fos = new FileOutputStream(excelFile);
+        workbook.write(fos);
+
+        // Đóng các dữ liệu đã tạo
+        workbook.close();
+        fos.close();
+
+        return excelFile;
+    }
+
+    private static void createTable(XSSFWorkbook workbook, XSSFSheet sheet, int startRow, int startCol,
+                                    String factoryName, String time,
+                                    Date date, HashMap<String, Integer> listOfData) {
+        int row = startRow;
+
+        //// Thiết lập một số phần cần thiết cho bảng
+        XSSFFormulaEvaluator formulaEvaluator = workbook.getCreationHelper().createFormulaEvaluator();
+
+        //// Chỉnh sửa căn lề
+        XSSFPrintSetup printSetup = sheet.getPrintSetup();
+        printSetup.setTopMargin(0.25);
+        printSetup.setRightMargin(0.17);
+        printSetup.setBottomMargin(0.25);
+        printSetup.setLeftMargin(0.55);
+
+        //// Tạo bảng
+        // Tạo tiêu đề
+        XSSFRow firstTitleRow = sheet.getRow(row);
+
+        CellStyle firstTitleStyle = workbook.createCellStyle();
+        XSSFFont firstTitleFont = workbook.createFont();
+
+        firstTitleFont.setFontName("Times New Roman");
+        firstTitleFont.setFontHeightInPoints((short) 12);
+        firstTitleFont.setBold(true);
+
+        firstTitleStyle.setFont(firstTitleFont);
+        firstTitleStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+        firstTitleStyle.setAlignment(HorizontalAlignment.CENTER);
+
+        sheet.addMergedRegion(new CellRangeAddress(row, row, startCol, startCol + 4));
+
+        Cell firstTitleCell = firstTitleRow.createCell(startCol);
+        firstTitleCell.setCellValue("CÔNG TY TNHH MTV DHA - BẮC NINH");
+        firstTitleCell.setCellStyle(firstTitleStyle);
+
+        row++;
+        XSSFRow secondTitleRow = sheet.getRow(row);
+
+        CellStyle secondTitleStyle = workbook.createCellStyle();
+        XSSFFont secondTitleFont = workbook.createFont();
+
+        secondTitleFont.setFontName("Times New Roman");
+        secondTitleFont.setFontHeightInPoints((short) 16);
+        secondTitleFont.setBold(true);
+
+        secondTitleStyle.setFont(secondTitleFont);
+        secondTitleStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+        secondTitleStyle.setAlignment(HorizontalAlignment.CENTER);
+
+        sheet.addMergedRegion(new CellRangeAddress(row, row, startCol, startCol + 4));
+
+        Cell secondTitleCell = secondTitleRow.createCell(startCol);
+        secondTitleCell.setCellValue("ĂN " + time.toUpperCase());
+        secondTitleCell.setCellStyle(secondTitleStyle);
+
+        row++;
+        XSSFRow thirdTitleRow = sheet.getRow(row);
+
+        CellStyle thirdTitleStyle = workbook.createCellStyle();
+        XSSFFont thirdTitleFont = workbook.createFont();
+
+        thirdTitleFont.setFontName("Times New Roman");
+        thirdTitleFont.setFontHeightInPoints((short) 12);
+        thirdTitleFont.setBold(true);
+
+        thirdTitleStyle.setFont(thirdTitleFont);
+        thirdTitleStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+        thirdTitleStyle.setAlignment(HorizontalAlignment.CENTER);
+
+        sheet.addMergedRegion(new CellRangeAddress(row, row, startCol, startCol + 4));
+
+        Cell thirdTitleCell = thirdTitleRow.createCell(startCol);
+        thirdTitleCell.setCellValue("PHIẾU BÁO CƠM " + factoryName.toUpperCase());
+        thirdTitleCell.setCellStyle(thirdTitleStyle);
+
+        row++;
+        XSSFRow dateRow = sheet.getRow(row);
+
+        CellStyle dateStyle = workbook.createCellStyle();
+        XSSFFont dateFont = workbook.createFont();
+        DataFormat dateFormat = workbook.createDataFormat();
+
+        dateFont.setFontName("Times New Roman");
+        dateFont.setFontHeightInPoints((short) 12);
+
+        dateStyle.setFont(dateFont);
+        dateStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+        dateStyle.setAlignment(HorizontalAlignment.CENTER);
+        dateStyle.setDataFormat(dateFormat.getFormat("\"Ngày\" dd \"tháng\" mm \"năm\" yyyy"));
+
+        sheet.addMergedRegion(new CellRangeAddress(row, row, startCol, startCol + 4));
+
+        Cell dateCell = dateRow.createCell(startCol);
+        dateCell.setCellValue(date);
+        dateCell.setCellStyle(dateStyle);
+
+        // Vẽ bảng
+        int startTableRow = ++row;
+        int endTableRow = 0;
+
+        CellStyle tableStyle = workbook.createCellStyle();
+        XSSFFont tableFont = workbook.createFont();
+
+        tableFont.setFontName("Times New Roman");
+        tableFont.setFontHeightInPoints((short) 12);
+
+        tableStyle.setFont(tableFont);
+        tableStyle.setAlignment(HorizontalAlignment.CENTER);
+
+        tableStyle.setBorderTop(BorderStyle.THIN);
+        tableStyle.setBorderRight(BorderStyle.THIN);
+        tableStyle.setBorderBottom(BorderStyle.THIN);
+        tableStyle.setBorderLeft(BorderStyle.THIN);
+
+        // Thêm 1 dữ liệu trống để đều bảng nếu số lượng nhóm lẻ
+        if (listOfData.size() % 2 != 0)
+            listOfData.put("", 0);
+
+        int numberOfTableRow = listOfData.size() / 2;
+        int startCell = startCol;
+        int counter = 0;
+
+        for (String group : listOfData.keySet()) {
+            XSSFRow tableRow = sheet.getRow(row + counter);
+            Cell keyCell = tableRow.createCell(startCell);
+            Cell valCell = tableRow.createCell(startCell + 1);
+
+            keyCell.setCellValue(group);
+            if (listOfData.get(group) == 0)
+                valCell.setCellValue("");
+            else
+                valCell.setCellValue(listOfData.get(group));
+
+            keyCell.setCellStyle(tableStyle);
+            valCell.setCellStyle(tableStyle);
+
+            counter++;
+            if (counter == numberOfTableRow) {
+                endTableRow = startTableRow + counter - 1;
+                counter = 0;
+                startCell = startCol + 2;
+            }
+        }
+        row = endTableRow + 1;
+
+        // Dòng tổng hợp
+        XSSFRow totalRow = sheet.getRow(row);
+
+        CellStyle totalStyle = workbook.createCellStyle();
+        XSSFFont totalFont = workbook.createFont();
+
+        totalFont.setFontName("Times New Roman");
+        totalFont.setFontHeightInPoints((short) 12);
+        totalFont.setBold(true);
+
+        totalStyle.setFont(totalFont);
+        totalStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+        totalStyle.setAlignment(HorizontalAlignment.LEFT);
+
+        String firstValCol = indexToColumnLetter(startCol + 1);
+        String secValCol = indexToColumnLetter(startCol + 3);
+
+        String numberFormula = String.format("SUM(%s%d:%s%d, %s%d:%s%d)",
+                firstValCol, startTableRow + 1,
+                firstValCol, endTableRow + 1,
+                secValCol, startTableRow + 1,
+                secValCol, endTableRow + 1);
+
+        String priceString = "x15000=";
+        Pattern pattern = Pattern.compile("\\d+");
+        Matcher matcher = pattern.matcher(priceString);
+
+        String totalFormula = "";
+
+        while (matcher.find()) {
+            totalFormula = String.format("%s%d*%f", firstValCol, row,
+                    Double.parseDouble(matcher.group()));
+        }
+
+        Cell sumCell = totalRow.createCell(startCol);
+        Cell numberCell = totalRow.createCell(startCol + 1);
+        Cell priceCell = totalRow.createCell(startCol + 2);
+        Cell totalCell = totalRow.createCell(startCol + 3);
+        Cell unitCell = totalRow.createCell(startCol + 4);
+
+        sumCell.setCellValue("Tổng:");
+
+        numberCell.setCellFormula(numberFormula);
+        formulaEvaluator.evaluateFormulaCell(numberCell);
+
+        priceCell.setCellValue(priceString);
+
+        totalCell.setCellFormula(totalFormula);
+        formulaEvaluator.evaluateFormulaCell(totalCell);
+
+        unitCell.setCellValue("đồng");
+
+        sumCell.setCellStyle(totalStyle);
+        numberCell.setCellStyle(totalStyle);
+        priceCell.setCellStyle(totalStyle);
+        totalCell.setCellStyle(totalStyle);
+        unitCell.setCellStyle(totalStyle);
+
+        row++;
+        XSSFRow textRow = sheet.getRow(row);
+
+        CellStyle textStyle = workbook.createCellStyle();
+        XSSFFont textFont = workbook.createFont();
+
+        textFont.setFontName("Times New Roman");
+        textFont.setFontHeightInPoints((short) 12);
+        textFont.setBold(true);
+
+        textStyle.setFont(textFont);
+        textStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+        textStyle.setAlignment(HorizontalAlignment.LEFT);
+
+        Cell textCell = textRow.createCell(startCol);
+        textCell.setCellValue("Bằng chữ:");
+        textCell.setCellStyle(textStyle);
+
+        // Thiết lập phần ký tên
+        row++;
+        XSSFRow firstNullRow = sheet.getRow(row);
+        firstNullRow.setHeightInPoints(3.8f);
+
+        row++;
+        XSSFRow signatureRow = sheet.getRow(row);
+
+        CellStyle signatureStyle = workbook.createCellStyle();
+        XSSFFont signatureFont = workbook.createFont();
+
+        signatureFont.setFontName("Times New Roman");
+        signatureFont.setFontHeightInPoints((short) 12);
+
+        signatureStyle.setFont(signatureFont);
+        signatureStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+        signatureStyle.setAlignment(HorizontalAlignment.CENTER);
+
+        Cell reportRicerCell = signatureRow.createCell(startCol);
+        reportRicerCell.setCellValue("Người báo cơm");
+        reportRicerCell.setCellStyle(signatureStyle);
+
+        Cell signatureCell = signatureRow.createCell(startCol + 3);
+        signatureCell.setCellValue("Ký nhận");
+        signatureCell.setCellStyle(signatureStyle);
+
+        sheet.addMergedRegion(new CellRangeAddress(row, row, startCol, startCol + 1));
+        sheet.addMergedRegion(new CellRangeAddress(row, row, startCol + 3, startCol + 4));
+
+        row++;
+        XSSFRow secondNullRow = sheet.getRow(row);
+        secondNullRow.setHeightInPoints(6f);
+
+        // Kẻ đường bao quanh phiếu
+        row++;
+        CellRangeAddress reportArea = new CellRangeAddress(startRow, row, startCol, startCol + 4);
+        RegionUtil.setBorderTop(BorderStyle.THIN, reportArea, sheet);
+        RegionUtil.setBorderRight(BorderStyle.THIN, reportArea, sheet);
+        RegionUtil.setBorderBottom(BorderStyle.THIN, reportArea, sheet);
+        RegionUtil.setBorderLeft(BorderStyle.THIN, reportArea, sheet);
+
+        // Chỉnh sửa độ rộng của các hàng (cuối)
+        sheet.setColumnWidth(startCol, 2650);
+        sheet.setColumnWidth(startCol + 1, 3072);
+        sheet.setColumnWidth(startCol + 2, 2816);
+        sheet.setColumnWidth(startCol + 3, 3290); // 12.11
+        sheet.setColumnWidth(startCol + 4, 1520);
+        sheet.setColumnWidth(startCol + 5, 400);
+    }
+
+    private static String indexToColumnLetter(int columnIndex) {
+        StringBuilder columnName = new StringBuilder();
+        int columnNumber = columnIndex + 1;
+
+        while (columnNumber > 0) {
+            int rem = columnNumber % 26;
+
+            if (rem == 0) {
+                columnName.append("Z");
+                columnNumber = (columnNumber / 26) - 1;
+            } else {
+                columnName.append((char) ((rem - 1) + 'A'));
+                columnNumber = columnNumber / 26;
+            }
+        }
+
+        return columnName.reverse().toString();
     }
 
     private static List<String> getObjectData(Object obj) throws IllegalAccessException {
