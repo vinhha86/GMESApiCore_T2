@@ -14,8 +14,6 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.temporal.ChronoField;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public final class RiceExcel {
 
@@ -892,7 +890,7 @@ public final class RiceExcel {
         formulaEvaluator.evaluateFormulaCell(sumBill);
         sumBill.setCellStyle(footerStyle);
 
-        //// Signature
+        //// Chữ ký
         rowNum++;
         Row billToTextRow = sheet.createRow(rowNum);
 
@@ -976,6 +974,44 @@ public final class RiceExcel {
 
             createTable(workbook, sheet, startRow, 6 * (counter / 2),
                     factoryName, time,
+                    date, allData.get(date));
+
+            counter++;
+        }
+
+        // Đưa dữ liệu vào trong file excel
+        FileOutputStream fos = new FileOutputStream(excelFile);
+        workbook.write(fos);
+
+        // Đóng các dữ liệu đã tạo
+        workbook.close();
+        fos.close();
+
+        return excelFile;
+    }
+
+    public static File exportComTangCa(String filePath, String factoryName, HashMap<Date, HashMap<String, Integer>> allData) throws IOException {
+        File excelFile = new File(filePath);
+
+        XSSFWorkbook workbook = new XSSFWorkbook();
+        XSSFSheet sheet = workbook.createSheet("Cơm tăng ca");
+
+        // Lấy dữ liệu mẫu và tính dòng cho bảng
+        Map.Entry<Date, HashMap<String, Integer>> tempMap = allData.entrySet().iterator().next();
+        HashMap<String, Integer> tempData = tempMap.getValue();
+        int tableRow = (int) Math.ceil(tempData.size() * 1.0 / 2);
+        int allFieldRow = tableRow + 11;
+
+        // Tạo sẵn các dòng cho file
+        for (int i = 0; i < allFieldRow * 2; i++) sheet.createRow(i);
+
+        // Tạo các bảng trong file
+        int counter = 0;
+        for (Date date : allData.keySet()) {
+            int startRow = (counter % 2 == 0) ? 0 : allFieldRow;
+
+            createTable(workbook, sheet, startRow, 6 * (counter / 2),
+                    factoryName, "",
                     date, allData.get(date));
 
             counter++;
@@ -1093,19 +1129,34 @@ public final class RiceExcel {
         int startTableRow = ++row;
         int endTableRow = 0;
 
-        CellStyle tableStyle = workbook.createCellStyle();
-        XSSFFont tableFont = workbook.createFont();
+        CellStyle tableGroupStyle = workbook.createCellStyle();
+        XSSFFont tableGroupFont = workbook.createFont();
 
-        tableFont.setFontName("Times New Roman");
-        tableFont.setFontHeightInPoints((short) 12);
+        tableGroupFont.setFontName("Times New Roman");
+        tableGroupFont.setFontHeightInPoints((short) 12);
 
-        tableStyle.setFont(tableFont);
-        tableStyle.setAlignment(HorizontalAlignment.CENTER);
+        tableGroupStyle.setFont(tableGroupFont);
+        tableGroupStyle.setVerticalAlignment(VerticalAlignment.CENTER);
 
-        tableStyle.setBorderTop(BorderStyle.THIN);
-        tableStyle.setBorderRight(BorderStyle.THIN);
-        tableStyle.setBorderBottom(BorderStyle.THIN);
-        tableStyle.setBorderLeft(BorderStyle.THIN);
+        tableGroupStyle.setBorderTop(BorderStyle.THIN);
+        tableGroupStyle.setBorderRight(BorderStyle.THIN);
+        tableGroupStyle.setBorderBottom(BorderStyle.THIN);
+        tableGroupStyle.setBorderLeft(BorderStyle.THIN);
+
+        CellStyle tableValStyle = workbook.createCellStyle();
+        XSSFFont tableValFont = workbook.createFont();
+
+        tableValFont.setFontName("Times New Roman");
+        tableValFont.setFontHeightInPoints((short) 12);
+
+        tableValStyle.setFont(tableValFont);
+        tableValStyle.setAlignment(HorizontalAlignment.CENTER);
+        tableValStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+
+        tableValStyle.setBorderTop(BorderStyle.THIN);
+        tableValStyle.setBorderRight(BorderStyle.THIN);
+        tableValStyle.setBorderBottom(BorderStyle.THIN);
+        tableValStyle.setBorderLeft(BorderStyle.THIN);
 
         // Thêm 1 dữ liệu trống để đều bảng nếu số lượng nhóm lẻ
         if (listOfData.size() % 2 != 0)
@@ -1126,8 +1177,8 @@ public final class RiceExcel {
             else
                 valCell.setCellValue(listOfData.get(group));
 
-            keyCell.setCellStyle(tableStyle);
-            valCell.setCellStyle(tableStyle);
+            keyCell.setCellStyle(tableGroupStyle);
+            valCell.setCellStyle(tableValStyle);
 
             counter++;
             if (counter == numberOfTableRow) {
@@ -1153,6 +1204,7 @@ public final class RiceExcel {
         totalStyle.setAlignment(HorizontalAlignment.LEFT);
 
         String firstValCol = indexToColumnLetter(startCol + 1);
+        String priceValCol = indexToColumnLetter(startCol + 2);
         String secValCol = indexToColumnLetter(startCol + 3);
 
         String numberFormula = String.format("SUM(%s%d:%s%d, %s%d:%s%d)",
@@ -1161,16 +1213,8 @@ public final class RiceExcel {
                 secValCol, startTableRow + 1,
                 secValCol, endTableRow + 1);
 
-        String priceString = "x15000=";
-        Pattern pattern = Pattern.compile("\\d+");
-        Matcher matcher = pattern.matcher(priceString);
-
-        String totalFormula = "";
-
-        while (matcher.find()) {
-            totalFormula = String.format("%s%d*%f", firstValCol, row,
-                    Double.parseDouble(matcher.group()));
-        }
+        String cellPriceAt = String.format("%s%d", priceValCol, row + 1);
+        String totalFormula = String.format("%s%d*" + getNumberFromTextExcel(cellPriceAt), firstValCol, row + 1);
 
         Cell sumCell = totalRow.createCell(startCol);
         Cell numberCell = totalRow.createCell(startCol + 1);
@@ -1183,7 +1227,7 @@ public final class RiceExcel {
         numberCell.setCellFormula(numberFormula);
         formulaEvaluator.evaluateFormulaCell(numberCell);
 
-        priceCell.setCellValue(priceString);
+        priceCell.setCellValue("x15000=");
 
         totalCell.setCellFormula(totalFormula);
         formulaEvaluator.evaluateFormulaCell(totalCell);
@@ -1262,6 +1306,10 @@ public final class RiceExcel {
         sheet.setColumnWidth(startCol + 3, 3290); // 12.11
         sheet.setColumnWidth(startCol + 4, 1520);
         sheet.setColumnWidth(startCol + 5, 400);
+    }
+
+    private static String getNumberFromTextExcel(String cellAt) {
+        return "IF(SUM(LEN(" + cellAt + ")-LEN(SUBSTITUTE(" + cellAt + ", {\"0\",\"1\",\"2\",\"3\",\"4\",\"5\",\"6\",\"7\",\"8\",\"9\"}, \"\")))>0, SUMPRODUCT(MID(0&" + cellAt + ", LARGE(INDEX(ISNUMBER(--MID(" + cellAt + ",ROW(INDIRECT(\"$1:$\"&LEN(" + cellAt + "))),1))* ROW(INDIRECT(\"$1:$\"&LEN(" + cellAt + "))),0), ROW(INDIRECT(\"$1:$\"&LEN(" + cellAt + "))))+1,1) * 10^ROW(INDIRECT(\"$1:$\"&LEN(" + cellAt + ")))/10),\"\")";
     }
 
     private static String indexToColumnLetter(int columnIndex) {

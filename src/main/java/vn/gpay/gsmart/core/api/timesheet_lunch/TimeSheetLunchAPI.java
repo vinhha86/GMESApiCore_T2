@@ -4,16 +4,13 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import javax.servlet.http.HttpServletRequest;
 
 import org.apache.poi.util.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -38,7 +35,6 @@ import vn.gpay.gsmart.core.timesheet_lunch.TongHopBaoAn;
 import vn.gpay.gsmart.core.timesheet_lunch_khach.ITimeSheetLunchKhachService;
 import vn.gpay.gsmart.core.timesheet_lunch_khach.TimeSheetLunchKhach;
 import vn.gpay.gsmart.core.timesheet_shift_type.ITimesheetShiftTypeService;
-import vn.gpay.gsmart.core.timesheet_shift_type.TimesheetShiftType;
 import vn.gpay.gsmart.core.timesheet_shift_type_org.ITimesheetShiftTypeOrgService;
 import vn.gpay.gsmart.core.timesheet_shift_type_org.TimesheetShiftTypeOrg;
 import vn.gpay.gsmart.core.utils.Common;
@@ -1395,7 +1391,7 @@ public class TimeSheetLunchAPI {
 			boolean created = uploadFolder.mkdirs();
 		}
 
-		String fileName = "exportGuestRice" + fileSDF.format(dateFrom) + "_" + fileSDF.format(dateTo) + ".xlsx";
+		String fileName = "ComKhach" + fileSDF.format(dateFrom) + "_" + fileSDF.format(dateTo) + ".xlsx";
 		String excelFilePath = folderPath + fileName;
 
 		while (dateFrom.getTime() <= dateTo.getTime()) {
@@ -1431,8 +1427,20 @@ public class TimeSheetLunchAPI {
 		}
 	}
 
-	private final List<Integer> listExtraRiceId = new ArrayList<>(){{
+	private final List<Integer> LIST_EXTRA_RICE_ID = new ArrayList<>(){{
+		// Ca 1
+		// Ca 2
+		// Ca 3
+		// Ca 4
 		add(8); // Ca 5
+		// Ca 6
+
+		// Ca 22
+		// Ca 23
+		// Ca 24
+		// Ca 25
+		// Ca 26
+		// Ca 27
 	}};
 
 	@PostMapping
@@ -1461,7 +1469,7 @@ public class TimeSheetLunchAPI {
 			boolean created = uploadFolder.mkdirs();
 		}
 
-		String fileName = "exportRice" + fileSDF.format(dateFrom) + "_" + fileSDF.format(dateTo) + ".xlsx";
+		String fileName = "TongHopComCa" + fileSDF.format(dateFrom) + "_" + fileSDF.format(dateTo) + ".xlsx";
 		String excelFilePath = folderPath + fileName;
 
 		List<Org> listOrg = orgService.getorgChildrenbyOrg(orgIdLink, new ArrayList<>());
@@ -1476,7 +1484,7 @@ public class TimeSheetLunchAPI {
 				listTimeSheetLunch.removeIf(p -> !p.getStatus().equals(1) || !p.isIslunch());
 
 				// Remove all extra rice
-				listExtraRiceId.forEach(id ->
+				LIST_EXTRA_RICE_ID.forEach(id ->
 						listTimeSheetLunch.removeIf(p -> p.getShifttypeid_link().equals(id)));
 
 				numberOfMeals += listTimeSheetLunch.size();
@@ -1535,7 +1543,7 @@ public class TimeSheetLunchAPI {
 			boolean created = uploadFolder.mkdirs();
 		}
 
-		String fileName = "exportGuestRice" + fileSDF.format(dateFrom) + "_" + fileSDF.format(dateTo) + ".xlsx";
+		String fileName = "TongHopComTangCa" + fileSDF.format(dateFrom) + "_" + fileSDF.format(dateTo) + ".xlsx";
 		String excelFilePath = folderPath + fileName;
 
 		List<Org> listOrg = orgService.getorgChildrenbyOrg(orgIdLink, new ArrayList<>());
@@ -1550,7 +1558,7 @@ public class TimeSheetLunchAPI {
 				listTimeSheetLunch.removeIf(p -> !p.getStatus().equals(1) || !p.isIslunch());
 
 				// Remove all not extra rice
-				listExtraRiceId.forEach(id ->
+				LIST_EXTRA_RICE_ID.forEach(id ->
 						listTimeSheetLunch.removeIf(p -> !p.getShifttypeid_link().equals(id)));
 
 				numberOfMeals += listTimeSheetLunch.size();
@@ -1565,6 +1573,161 @@ public class TimeSheetLunchAPI {
 
 		try {
 			File excelFile = RiceExcel.createTotalExtraFile(excelFilePath, listOfData);
+			InputStream dataInputStream = new FileInputStream(excelFile);
+
+			response.setData(IOUtils.toByteArray(dataInputStream));
+			response.setRespcode(ResponseMessage.KEY_RC_SUCCESS);
+			response.setMessage(ResponseMessage.getMessage(ResponseMessage.KEY_RC_SUCCESS));
+
+			dataInputStream.close();
+			boolean deleted = excelFile.delete();
+
+			return ResponseEntity.ok(response);
+		} catch (Exception exception) {
+			response.setData(null);
+			response.setRespcode(ResponseMessage.KEY_RC_APPROVE_FAIL);
+			response.setMessage(ResponseMessage.getMessage(ResponseMessage.KEY_RC_APPROVE_FAIL));
+			return ResponseEntity.badRequest().body(response);
+		}
+	}
+
+	@PostMapping
+	@RequestMapping(value = "/exportComCa")
+	public ResponseEntity<ExcelResponse> downloadComCa(@RequestBody get_tonghopbaoan_request request, HttpServletRequest servletRequest) {
+		ExcelResponse response = new ExcelResponse();
+
+		// Tạo map chứa dữ liệu để vẽ bảng
+		HashMap<Date, HashMap<String, Integer>> allData = new LinkedHashMap<>();
+
+		// Tạo định dạng cho ngày tháng truyền vào
+		String pattern = "dd/MM/yyyy";
+		SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
+
+		String filePattern = "ddMMyyyy";
+		SimpleDateFormat fileSDF = new SimpleDateFormat(filePattern);
+
+		Calendar calendar = Calendar.getInstance();
+
+		// Lấy dữ liệu từ request
+		Long orgIdLink = request.orgid_link;
+		Date dateFrom = commonService.getBeginOfDate(request.date_from);
+		Date dateTo = commonService.getBeginOfDate(request.date_to);
+
+		// Tạo thư mục để chứa file xuất ra
+		String folderPath = servletRequest.getServletContext().getRealPath("report/Export/ExtraRice/");
+		File uploadFolder = new File(folderPath);
+
+		if (!uploadFolder.exists()) {
+			boolean created = uploadFolder.mkdirs();
+		}
+
+		String fileName = "ComCa" + fileSDF.format(dateFrom) + "_" + fileSDF.format(dateTo) + ".xlsx";
+		String excelFilePath = folderPath + fileName;
+
+		Org factory = orgService.findOne(orgIdLink);
+		List<Org> listOrg = orgService.getorgChildrenbyOrg(orgIdLink, new ArrayList<>()); // Các đơn vị trong phân xưởng
+
+		// TODO: Lấy lấy thời gian ăn
+		String timeText = "";
+
+		while (dateFrom.getTime() <= dateTo.getTime()) {
+			HashMap<String, Integer> data = new LinkedHashMap<>();
+
+			for (Org org : listOrg) {
+				List<TimeSheetLunch> listTimeSheetLunch = timeSheetLunchService.getForTimeSheetLunchByGrant(org.getId(), dateFrom);
+
+				listTimeSheetLunch.removeIf(p -> !p.getStatus().equals(1) || !p.isIslunch());
+				LIST_EXTRA_RICE_ID.forEach(id ->
+						listTimeSheetLunch.removeIf(p -> p.getShifttypeid_link().equals(id)));
+
+				data.put(org.getName(), listTimeSheetLunch.size());
+			}
+
+			allData.put(dateFrom, data);
+
+			calendar.setTime(dateFrom);
+			calendar.add(Calendar.DATE, 1);
+			dateFrom = calendar.getTime();
+		}
+
+		try {
+			File excelFile = RiceExcel.exportComCa(excelFilePath, factory.getName(), timeText, allData);
+			InputStream dataInputStream = new FileInputStream(excelFile);
+
+			response.setData(IOUtils.toByteArray(dataInputStream));
+			response.setRespcode(ResponseMessage.KEY_RC_SUCCESS);
+			response.setMessage(ResponseMessage.getMessage(ResponseMessage.KEY_RC_SUCCESS));
+
+			dataInputStream.close();
+			boolean deleted = excelFile.delete();
+
+			return ResponseEntity.ok(response);
+		} catch (Exception exception) {
+			response.setData(null);
+			response.setRespcode(ResponseMessage.KEY_RC_APPROVE_FAIL);
+			response.setMessage(ResponseMessage.getMessage(ResponseMessage.KEY_RC_APPROVE_FAIL));
+			return ResponseEntity.badRequest().body(response);
+		}
+	}
+
+	@PostMapping
+	@RequestMapping(value = "/exportComTangCa")
+	public ResponseEntity<ExcelResponse> downloadComTangCa(@RequestBody get_tonghopbaoan_request request, HttpServletRequest servletRequest) {
+		ExcelResponse response = new ExcelResponse();
+
+		// Tạo map chứa dữ liệu để vẽ bảng
+		HashMap<Date, HashMap<String, Integer>> allData = new LinkedHashMap<>();
+
+		// Tạo định dạng cho ngày tháng truyền vào
+		String pattern = "dd/MM/yyyy";
+		SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
+
+		String filePattern = "ddMMyyyy";
+		SimpleDateFormat fileSDF = new SimpleDateFormat(filePattern);
+
+		Calendar calendar = Calendar.getInstance();
+
+		// Lấy dữ liệu từ request
+		Long orgIdLink = request.orgid_link;
+		Date dateFrom = commonService.getBeginOfDate(request.date_from);
+		Date dateTo = commonService.getBeginOfDate(request.date_to);
+
+		// Tạo thư mục để chứa file xuất ra
+		String folderPath = servletRequest.getServletContext().getRealPath("report/Export/ExtraRice/");
+		File uploadFolder = new File(folderPath);
+
+		if (!uploadFolder.exists()) {
+			boolean created = uploadFolder.mkdirs();
+		}
+
+		String fileName = "ComTangCa" + fileSDF.format(dateFrom) + "_" + fileSDF.format(dateTo) + ".xlsx";
+		String excelFilePath = folderPath + fileName;
+
+		Org factory = orgService.findOne(orgIdLink);
+		List<Org> listOrg = orgService.getorgChildrenbyOrg(orgIdLink, new ArrayList<>()); // Các đơn vị trong phân xưởng
+
+		while (dateFrom.getTime() <= dateTo.getTime()) {
+			HashMap<String, Integer> data = new LinkedHashMap<>();
+
+			for (Org org : listOrg) {
+				List<TimeSheetLunch> listTimeSheetLunch = timeSheetLunchService.getForTimeSheetLunchByGrant(org.getId(), dateFrom);
+
+				listTimeSheetLunch.removeIf(p -> !p.getStatus().equals(1) || !p.isIslunch());
+				LIST_EXTRA_RICE_ID.forEach(id ->
+						listTimeSheetLunch.removeIf(p -> !p.getShifttypeid_link().equals(id)));
+
+				data.put(org.getName(), listTimeSheetLunch.size());
+			}
+
+			allData.put(dateFrom, data);
+
+			calendar.setTime(dateFrom);
+			calendar.add(Calendar.DATE, 1);
+			dateFrom = calendar.getTime();
+		}
+
+		try {
+			File excelFile = RiceExcel.exportComTangCa(excelFilePath, factory.getName(), allData);
 			InputStream dataInputStream = new FileInputStream(excelFile);
 
 			response.setData(IOUtils.toByteArray(dataInputStream));
