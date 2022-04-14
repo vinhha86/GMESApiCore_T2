@@ -3,15 +3,7 @@ package vn.gpay.gsmart.core.personel;
 import java.io.Serializable;
 import java.util.Date;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
-import javax.persistence.SequenceGenerator;
-import javax.persistence.Table;
-import javax.persistence.Transient;
+import javax.persistence.*;
 
 import org.hibernate.annotations.NotFound;
 import org.hibernate.annotations.NotFoundAction;
@@ -75,8 +67,30 @@ public class Personel implements Serializable {
 	private Long timesheet_absence_type_id_link; 
 	private String account_number;
 	private String household_number;
-	
-	
+	///
+	@Column(name = "bankname")
+	private String bankname;
+
+	@Column(name = "date_household_grant")
+	private Date date_household_grant;
+
+	public String getBankname() {
+		return bankname;
+	}
+
+	public void setBankname(String bankname) {
+		this.bankname = bankname;
+	}
+
+	public Date getDate_household_grant() {
+		return date_household_grant;
+	}
+
+	public void setDate_household_grant(Date date_household_grant) {
+		this.date_household_grant = date_household_grant;
+	}
+
+	///
 	@NotFound(action = NotFoundAction.IGNORE)
 	@ManyToOne
     @JoinColumn(name="levelid_link",insertable=false,updatable =false)

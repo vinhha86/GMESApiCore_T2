@@ -548,6 +548,42 @@ public class UploadPersonnelAPI {
 							}
 						}
 
+						///
+						// Ngay cap so ho khau
+						Date NgayCapSoHoKhau = null;
+						try {
+							String ngayCapSoHoKhau = commonService.getStringValue(row.getCell(ColumnPersonnel.NgayCapHoKhau));
+							if (ngayCapSoHoKhau.contains("/")) {
+								String[] s_date = ngayCapSoHoKhau.split("/");
+								if (Integer.parseInt(s_date[1].toString()) < 13
+										&& Integer.parseInt(s_date[0].toString()) < 32
+										&& Integer.parseInt(s_date[0]) > 0
+										&& Integer.parseInt(s_date[1]) > 0) {
+									NgayCapSoHoKhau = new SimpleDateFormat("dd/MM/yyyy").parse(ngayCapSoHoKhau);
+
+
+
+								} else {
+									mes_err = " Định dạng ngày cấp mới không đúng dd/MM/yyyy! " + " ở dòng  "
+											+ (rowNum+1);
+									break;
+								}
+							} else if (ngayCapSoHoKhau != "") {
+								if (DateUtil.isCellDateFormatted(row.getCell(ColumnPersonnel.NgayCapHoKhau))) {
+									NgayCapSoHoKhau = row.getCell(ColumnPersonnel.NgayCapHoKhau).getDateCellValue();
+								}
+							}
+						} catch (Exception e) {
+							if (DateUtil.isCellDateFormatted(row.getCell(ColumnPersonnel.NgayCapHoKhau))) {
+								NgayCapSoHoKhau = row.getCell(ColumnPersonnel.NgayCapHoKhau).getDateCellValue();
+							}
+						}
+
+						String TenNganHang = commonService.getStringValue(row.getCell(ColumnPersonnel.TenNganHang));
+
+
+
+
 						String NoiCapMoi = commonService.getStringValue(row.getCell(ColumnPersonnel.NoiCapMoi));
 						String SK = commonService.getStringValue(row.getCell(ColumnPersonnel.SucKhoe));
 						String SoSBH = commonService.getStringValue(row.getCell(ColumnPersonnel.SoSBH));
@@ -604,8 +640,18 @@ public class UploadPersonnelAPI {
 						person.setAccount_number(SoTaiKhoan);
 						person.setHousehold_number(SoSoHoKhau);
 
+						///
+						person.setBankname(TenNganHang);
+						person.setDate_household_grant(NgayCapSoHoKhau);
+
 						// luu nhan vien
 						Personel personnel = personnel_service.save(person);
+						System.out.println(personnel.getId());
+						System.out.println(personnel.getBankname());
+						System.out.println(personnel.getDate_household_grant());
+						System.out.println(TenNganHang);
+						System.out.println(NgayCapSoHoKhau);
+
 						Long personnelid_link = personnel.getId();
 
 						// luu chuc vu
