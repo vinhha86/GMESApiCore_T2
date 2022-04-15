@@ -112,6 +112,16 @@ public class PContractService extends AbstractService<PContract> implements IPCo
 	@Override
 	public List<PContract> getBySearch_PosList(PContract_getbysearch_request entity, List<Long> pos, List<Long> product,
 			List<Long> vendors, List<Long> buyers) {
+//		System.out.println("POS");
+//		pos.forEach(System.out::println);
+//		System.out.println("Product");
+//		product.forEach(System.out::println);
+//		System.out.println("Vendors");
+//		vendors.forEach(System.out::println);
+//		System.out.println("Buyers");
+//		buyers.forEach(System.out::println);
+
+
 		CriteriaBuilder cb = em.getCriteriaBuilder();
 
 		CriteriaQuery<PContract> cq_po = cb.createQuery(PContract.class);
@@ -164,6 +174,7 @@ public class PContractService extends AbstractService<PContract> implements IPCo
 			thePredicates
 					.add(cb.le(rootPcontract.get("contractbuyer").get("contract_year"), entity.contractbuyer_yearto));
 		}
+		// ship
 
 		// vendor
 		if (vendors.size() > 0) {

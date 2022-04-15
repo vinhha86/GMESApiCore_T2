@@ -3083,7 +3083,8 @@ public class PContract_POAPI {
 				if(packingnotice == null || packingnotice.equals("null") || packingnotice.equals("")) {
 					thePoline.setPhuongThucDongGoi("");
 				}else {
-					String phuongThucDongGoi = "";
+					String phuongThucDongGoi = ""
+							;
 					String[] listStr = packingnotice.split(";");
 					for(Integer i=0; i<listStr.length;i++) {
 						if(!listStr[i].equals("")) {

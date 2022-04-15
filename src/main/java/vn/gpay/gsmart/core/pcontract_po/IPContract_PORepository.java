@@ -15,18 +15,18 @@ import org.springframework.transaction.annotation.Transactional;
 public interface IPContract_PORepository
 		extends JpaRepository<PContract_PO, Long>, JpaSpecificationExecutor<PContract_PO> {
 	@Query(value = "select c from PContract_PO c " + "where c.orgrootid_link = :orgrootid_link "
-			+ "and c.parentpoid_link = null " + "and c.pcontractid_link = :pcontractid_link "
+			+ "and c.parentpoid_link is null " + "and c.pcontractid_link = :pcontractid_link "
 			+ "and (c.productid_link = :productid_link or 0 = :productid_link) "
-			+ "and (:userid_link is null or c.merchandiserid_link = :userid_link) " + "and po_typeid_link = 10")
+			+ "and (:userid_link is null or c.merchandiserid_link = :userid_link) " + "and c.po_typeid_link = 10")
 	public List<PContract_PO> getPOByContractProduct(@Param("orgrootid_link") final Long orgrootid_link,
 			@Param("pcontractid_link") final Long pcontractid_link, @Param("productid_link") final Long productid_link,
 			@Param("userid_link") final Long userid_link);
 
-	@Query(value = "select c from PContract_PO c " + "where id = :pcontractpoid_link")
+	@Query(value = "select c from PContract_PO c " + "where c.id = :pcontractpoid_link")
 	public List<PContract_PO> getbyId(@Param("pcontractpoid_link") final Long pcontractpoid_link);
 
 	@Query(value = "select c from PContract_PO c " + "where c.orgrootid_link = :orgrootid_link "
-			+ "and c.parentpoid_link = null " + "and c.pcontractid_link = :pcontractid_link "
+			+ "and c.parentpoid_link is null " + "and c.pcontractid_link = :pcontractid_link "
 			+ "and (c.productid_link = :productid_link or 0 = :productid_link) "
 			+ "and (:userid_link is null or c.merchandiserid_link = :userid_link) " + "and c.po_typeid_link in (0,1)")
 	public List<PContract_PO> getPO_Chaogia(@Param("orgrootid_link") final Long orgrootid_link,
@@ -34,7 +34,7 @@ public interface IPContract_PORepository
 			@Param("userid_link") final Long userid_link);
 
 	@Query(value = "select c from PContract_PO c " + "where c.orgrootid_link = :orgrootid_link "
-			+ "and c.parentpoid_link = null " + "and c.pcontractid_link = :pcontractid_link "
+			+ "and c.parentpoid_link is null " + "and c.pcontractid_link = :pcontractid_link "
 			+ "and (c.productid_link = :productid_link or 0 = :productid_link) "
 			+ "and (:userid_link is null or c.merchandiserid_link = :userid_link) "
 			+ "and (c.po_typeid_link = 0 or c.po_typeid_link = 1 or c.po_typeid_link = 11)")
@@ -51,7 +51,7 @@ public interface IPContract_PORepository
 	public List<PContract_PO> getby_parentid_link(@Param("pcontractpo_id_link") final Long pcontractpo_id_link);
 
 	@Query(value = "select c from PContract_PO c " + "where c.parentpoid_link = :parentid_link "
-			+ "and c.po_typeid_link =:po_typeid_link " + "order by shipdate asc")
+			+ "and c.po_typeid_link =:po_typeid_link " + "order by c.shipdate asc")
 	public List<PContract_PO> getby_parent_and_type(@Param("parentid_link") final Long parentid_link,
 			@Param("po_typeid_link") final Integer po_typeid_link);
 
@@ -66,6 +66,21 @@ public interface IPContract_PORepository
 	public List<PContract_PO> getby_parent_and_type_and_mausp(@Param("parentid_link") final Long parentid_link,
 			@Param("mausanphamid_link") final Long mausanphamid_link,
 			@Param("po_typeid_link") final Integer po_typeid_link);
+
+	@Query(value = "select c from PContract_PO c "
+			+ "left join PContractProductSKU a on c.id = a.pcontract_poid_link "
+			+ "left join SKU_Attribute_Value b on b.skuid_link = a.skuid_link "
+			+ "where c.parentpoid_link = :parentid_link "
+			+ "and c.po_typeid_link =:po_typeid_link "
+			+ "and (b.attributevalueid_link = :mausanphamid_link or :mausanphamid_link is null) "
+			+ "and (c.shipdate >= :shipdate_from and c.shipdate <= :shipdate_to)"
+			+ "group by c "
+			+ "order by c.shipdate asc")
+	public List<PContract_PO> getby_parent_and_type_and_mausp_and_shipdate(@Param("parentid_link") final Long parentid_link,
+															  @Param("mausanphamid_link") final Long mausanphamid_link,
+															  @Param("po_typeid_link") final Integer po_typeid_link,
+															 @Param("shipdate_from") final Date shipdate_from,
+	                                            			   @Param("shipdate_to") final Date shipdate_to);
 	
 	@Query(value = "select SUM(c.po_quantity) from PContract_PO c " 
 			+ "left join PContractProductSKU a on c.id = a.pcontract_poid_link "
@@ -103,7 +118,7 @@ public interface IPContract_PORepository
 			@Param("productid_link") final Long productid_link);
 
 	@Query(value = "select c from PContract_PO c " + "where c.pcontractid_link = :pcontractid_link "
-			+ "and (:productid_link is null or c.productid_link = :productid_link) " + "and c.parentpoid_link = null "
+			+ "and (:productid_link is null or c.productid_link = :productid_link) " + "and c.parentpoid_link is null "
 			+ "and c.status = 0 ")
 	public List<PContract_PO> getPO_Offer_Accept_ByPContract(@Param("pcontractid_link") final Long pcontractid_link,
 			@Param("productid_link") final Long productid_link);
