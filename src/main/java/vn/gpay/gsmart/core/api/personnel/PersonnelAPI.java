@@ -11,6 +11,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -29,11 +30,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import vn.gpay.gsmart.core.base.ResponseBase;
 import vn.gpay.gsmart.core.org.IOrgService;
-import vn.gpay.gsmart.core.personel.IPersonnel_Service;
-import vn.gpay.gsmart.core.personel.IPersonnel_inout_Service;
-import vn.gpay.gsmart.core.personel.Personel;
-import vn.gpay.gsmart.core.personel.Personnel_inout;
-import vn.gpay.gsmart.core.personel.Personnel_inout_request;
+//Test
+import vn.gpay.gsmart.core.personel.*;
 import vn.gpay.gsmart.core.personnel_history.IPersonnel_His_Service;
 import vn.gpay.gsmart.core.personnel_history.Personnel_His;
 import vn.gpay.gsmart.core.personnel_notmap.IPersonnel_notmap_Service;
@@ -56,6 +54,9 @@ import vn.gpay.gsmart.core.utils.ResponseMessage;
 @RestController
 @RequestMapping("/api/v1/personnel")
 public class PersonnelAPI {
+	//Test
+//	@Autowired
+//	Personnel_repository repo;
 	@Autowired
 	IPersonnelType_Service personneltypeService;
 	@Autowired
@@ -504,6 +505,11 @@ public class PersonnelAPI {
 				}
 			}
 
+			String bankname = person.getBankname() == null ? "" : person.getBankname().trim();
+			person.setBankname(bankname);
+			person.setDate_household_grant(person.getDate_household_grant());
+			personService.save(person);
+
 			Boolean isbike = person.getIsbike() == null ? false : person.getIsbike();
 			person.setIsbike(isbike);
 			if (person.getId() == null) {
@@ -550,6 +556,13 @@ public class PersonnelAPI {
 				person = personService.save(person);
 		
 			}
+
+			//Test
+//			long a = 0;
+//			String b = "0912079398";
+//			List<Personel> test = repo.findByCountryid_linkAndTel(a, b);
+//			response.c = test.get(0).getFullname();
+
 
 			response.id = person.getId();
 			response.bike_number = person.getBike_number();
@@ -681,7 +694,7 @@ public class PersonnelAPI {
 	/**
 	 * thêm ca làm việc mặc định
 	 * 
-	 * @param request
+	 * @param
 	 * @return
 	 */
 	@RequestMapping(value = "/addshift_personnel", method = RequestMethod.POST)
