@@ -1,5 +1,7 @@
 package vn.gpay.gsmart.core.porder_grant;
 import java.io.Serializable;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -81,6 +83,25 @@ public class POrderGrant_SKU implements Serializable {
 			}
 		}
 		return "";
+	}
+	///
+	@Transient
+	public String getPcontractPo_ShipDate() {
+		if(pcontractPo!=null) {
+			if(pcontractPo.getShipdate() != null) {
+				SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy");
+				String strDate = formatter.format(pcontractPo.getShipdate());
+				return strDate;
+			}
+		}
+		return "";
+	}
+	@Transient
+	public String getHeader() {
+		if(getPcontractPo_PoBuyer().equals("") || getPcontractPo_ShipDate().equals("")) {
+			return getPcontractPo_PoBuyer() + getPcontractPo_ShipDate();
+		}
+		return getPcontractPo_PoBuyer() + " - " + getPcontractPo_ShipDate();
 	}
 
 	@NotFound(action = NotFoundAction.IGNORE)
@@ -248,5 +269,6 @@ public class POrderGrant_SKU implements Serializable {
 	public void setCo_SanPham(String co_SanPham) {
 		this.co_SanPham = co_SanPham;
 	}
+
 	
 }
