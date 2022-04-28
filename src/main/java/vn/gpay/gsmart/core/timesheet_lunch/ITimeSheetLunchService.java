@@ -12,6 +12,7 @@ public interface ITimeSheetLunchService  extends Operations<TimeSheetLunch>{
 	List<TimeSheetLunch> getForTimeSheetLunchBeforeDate(Long orgid_link, Date workingdate);
 	List<TimeSheetLunch> getForTimeSheetLunchByGrant(Long orgid_link, Date workingdate);
 	List<TimeSheetLunch> getForTimeSheetLunchByGrantManyDay(Long orgid_link, Date date_from, Date date_to);
+	List<TimeSheetLunch> getForTimeSheetLunchByManagerOrgManyDay(Long orgmanagerid_link, Date date_from, Date date_to);
 	List<TimeSheetLunch> getByPersonnelDateAndShift(Long personnelid_link, Date workingdate, Integer shifttypeid_link);
 	List<TimeSheetLunch> getByPersonnelDate(Long personnelid_link, Date workingdate_start, Date workingdate_end);
 	List<TimeSheetLunch> getForUpdateStatusTimeSheetLunch(Long orgid_link, Date workingdate);

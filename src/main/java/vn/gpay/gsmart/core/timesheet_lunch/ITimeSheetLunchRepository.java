@@ -51,8 +51,7 @@ public interface ITimeSheetLunchRepository
 
 	@Query("SELECT DISTINCT tsl FROM TimeSheetLunch tsl "
 			+ "WHERE tsl.orgmanagerid_link = :orgmanagerid_link "
-			+ "AND tsl.workingdate >= :date_from "
-			+ "AND tsl.workingdate <= :date_to")
+			+ "AND tsl.workingdate BETWEEN :date_from AND :date_to")
 	public List<TimeSheetLunch> getForTimeSheetLunchByManagerOrgManyDay(@Param("orgmanagerid_link") final Long orgmanagerid_link,
 																		@Param("date_from") final Date date_from,
 																		@Param("date_to") final Date date_to);
