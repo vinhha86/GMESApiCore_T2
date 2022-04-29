@@ -1394,11 +1394,20 @@ public class TimeSheetLunchAPI {
 		String fileName = "ComKhach" + fileSDF.format(dateFrom) + "_" + fileSDF.format(dateTo) + ".xlsx";
 		String excelFilePath = folderPath + fileName;
 
-		while (dateFrom.getTime() <= dateTo.getTime()) {
-			List<TimeSheetLunchKhach> listTimeSheetLunchGuest = lunchkhachService.getby_ngay_org(dateFrom, orgIdLink);
+		List<TimeSheetLunchKhach> rawData = lunchkhachService.getby_nhieungay_org(dateFrom, dateTo, orgIdLink);
 
+		rawData.sort((o1, o2) -> {
+			if (o1.getDay().before(o2.getDay())) return -1;
+			if (o1.getDay().after(o2.getDay())) return 1;
+			return 0;
+		});
+
+		while (dateFrom.getTime() <= dateTo.getTime()) {
 			int numberOfMeals = 0;
-			for (TimeSheetLunchKhach data : listTimeSheetLunchGuest) numberOfMeals += data.getAmount();
+
+			for (TimeSheetLunchKhach data : rawData) {
+				if (data.getDay().compareTo(dateFrom) == 0) numberOfMeals += data.getAmount();
+			}
 
 			listOfData.add(new ExcelRiceDTO(simpleDateFormat.format(dateFrom), numberOfMeals));
 
@@ -1474,20 +1483,49 @@ public class TimeSheetLunchAPI {
 
 		List<Org> listOrg = orgService.getorgChildrenbyOrg(orgIdLink, new ArrayList<>());
 
+//		while (dateFrom.getTime() <= dateTo.getTime()) {
+//			int numberOfMeals = 0;
+//
+//			for (Org org : listOrg) {
+//				List<TimeSheetLunch> listTimeSheetLunch = timeSheetLunchService.getForTimeSheetLunchByGrant(org.getId(), dateFrom);
+//
+//				// Remove all unconfirmed people and haven't lunch
+//				listTimeSheetLunch.removeIf(p -> !p.getStatus().equals(1) || !p.isIslunch());
+//
+//				// Remove all extra rice
+//				LIST_EXTRA_RICE_ID.forEach(id ->
+//						listTimeSheetLunch.removeIf(p -> p.getShifttypeid_link().equals(id)));
+//
+//				numberOfMeals += listTimeSheetLunch.size();
+//			}
+//
+//			listOfData.add(new ExcelRiceDTO(simpleDateFormat.format(dateFrom), numberOfMeals));
+//
+//			calendar.setTime(dateFrom);
+//			calendar.add(Calendar.DATE, 1);
+//			dateFrom = calendar.getTime();
+//		}
+
+		// Lấy dữ liệu giữa 2 ngày từ id của org cha
+		List<TimeSheetLunch> rawData = timeSheetLunchService.
+				getForTimeSheetLunchByManagerOrgManyDay(orgIdLink, dateFrom, dateTo);
+
+		// Xóa dữ liệu cơm tăng ca
+		rawData.removeIf(p -> !p.getStatus().equals(1) || !p.isIslunch());
+		LIST_EXTRA_RICE_ID.forEach(id -> rawData.removeIf(p -> p.getShifttypeid_link().equals(id)));
+
+		// Sắp xếp dữ liệu theo ngày
+		rawData.sort((o1, o2) -> {
+			if (o1.getWorkingdate().before(o2.getWorkingdate())) return -1;
+			if (o1.getWorkingdate().after(o2.getWorkingdate())) return 1;
+			return 0;
+		});
+
 		while (dateFrom.getTime() <= dateTo.getTime()) {
 			int numberOfMeals = 0;
 
-			for (Org org : listOrg) {
-				List<TimeSheetLunch> listTimeSheetLunch = timeSheetLunchService.getForTimeSheetLunchByGrant(org.getId(), dateFrom);
-
-				// Remove all unconfirmed people and haven't lunch
-				listTimeSheetLunch.removeIf(p -> !p.getStatus().equals(1) || !p.isIslunch());
-
-				// Remove all extra rice
-				LIST_EXTRA_RICE_ID.forEach(id ->
-						listTimeSheetLunch.removeIf(p -> p.getShifttypeid_link().equals(id)));
-
-				numberOfMeals += listTimeSheetLunch.size();
+			for (TimeSheetLunch data : rawData) {
+				if (data.getWorkingdate().compareTo(dateFrom) == 0) numberOfMeals++;
 			}
 
 			listOfData.add(new ExcelRiceDTO(simpleDateFormat.format(dateFrom), numberOfMeals));
@@ -1548,20 +1586,49 @@ public class TimeSheetLunchAPI {
 
 		List<Org> listOrg = orgService.getorgChildrenbyOrg(orgIdLink, new ArrayList<>());
 
+//		while (dateFrom.getTime() <= dateTo.getTime()) {
+//			int numberOfMeals = 0;
+//
+//			for (Org org : listOrg) {
+//				List<TimeSheetLunch> listTimeSheetLunch = timeSheetLunchService.getForTimeSheetLunchByGrant(org.getId(), dateFrom);
+//
+//				// Remove all unconfirmed people and haven't lunch
+//				listTimeSheetLunch.removeIf(p -> !p.getStatus().equals(1) || !p.isIslunch());
+//
+//				// Remove all not extra rice
+//				LIST_EXTRA_RICE_ID.forEach(id ->
+//						listTimeSheetLunch.removeIf(p -> !p.getShifttypeid_link().equals(id)));
+//
+//				numberOfMeals += listTimeSheetLunch.size();
+//			}
+//
+//			listOfData.add(new ExcelRiceDTO(simpleDateFormat.format(dateFrom), numberOfMeals));
+//
+//			calendar.setTime(dateFrom);
+//			calendar.add(Calendar.DATE, 1);
+//			dateFrom = calendar.getTime();
+//		}
+
+		// Lấy dữ liệu giữa 2 ngày từ id của org cha
+		List<TimeSheetLunch> rawData = timeSheetLunchService.
+				getForTimeSheetLunchByManagerOrgManyDay(orgIdLink, dateFrom, dateTo);
+
+		// Xóa dữ liệu cơm tăng ca
+		rawData.removeIf(p -> !p.getStatus().equals(1) || !p.isIslunch());
+		LIST_EXTRA_RICE_ID.forEach(id -> rawData.removeIf(p -> !p.getShifttypeid_link().equals(id)));
+
+		// Sắp xếp dữ liệu theo ngày
+		rawData.sort((o1, o2) -> {
+			if (o1.getWorkingdate().before(o2.getWorkingdate())) return -1;
+			if (o1.getWorkingdate().after(o2.getWorkingdate())) return 1;
+			return 0;
+		});
+
 		while (dateFrom.getTime() <= dateTo.getTime()) {
 			int numberOfMeals = 0;
 
-			for (Org org : listOrg) {
-				List<TimeSheetLunch> listTimeSheetLunch = timeSheetLunchService.getForTimeSheetLunchByGrant(org.getId(), dateFrom);
-
-				// Remove all unconfirmed people and haven't lunch
-				listTimeSheetLunch.removeIf(p -> !p.getStatus().equals(1) || !p.isIslunch());
-
-				// Remove all not extra rice
-				LIST_EXTRA_RICE_ID.forEach(id ->
-						listTimeSheetLunch.removeIf(p -> !p.getShifttypeid_link().equals(id)));
-
-				numberOfMeals += listTimeSheetLunch.size();
+			for (TimeSheetLunch data : rawData) {
+				if (data.getWorkingdate().compareTo(dateFrom) == 0) numberOfMeals++;
 			}
 
 			listOfData.add(new ExcelRiceDTO(simpleDateFormat.format(dateFrom), numberOfMeals));
@@ -1590,6 +1657,8 @@ public class TimeSheetLunchAPI {
 			return ResponseEntity.badRequest().body(response);
 		}
 	}
+
+	Logger logger = LoggerFactory.getLogger(this.getClass());
 
 	@PostMapping
 	@RequestMapping(value = "/exportComCa")
@@ -1630,17 +1699,32 @@ public class TimeSheetLunchAPI {
 		// TODO: Lấy lấy thời gian ăn
 		String timeText = "";
 
+		// Lấy dữ liệu giữa 2 ngày từ id của org cha
+		List<TimeSheetLunch> rawData = timeSheetLunchService.
+				getForTimeSheetLunchByManagerOrgManyDay(orgIdLink, dateFrom, dateTo);
+
+		// Xóa dữ liệu cơm tăng ca
+		rawData.removeIf(p -> !p.getStatus().equals(1) || !p.isIslunch());
+		LIST_EXTRA_RICE_ID.forEach(id -> rawData.removeIf(p -> p.getShifttypeid_link().equals(id)));
+
+		// Sắp xếp dữ liệu theo ngày
+		rawData.sort((o1, o2) -> {
+			if (o1.getWorkingdate().before(o2.getWorkingdate())) return -1;
+			if (o1.getWorkingdate().after(o2.getWorkingdate())) return 1;
+			return 0;
+		});
+
 		while (dateFrom.getTime() <= dateTo.getTime()) {
 			HashMap<String, Integer> data = new LinkedHashMap<>();
 
 			for (Org org : listOrg) {
-				List<TimeSheetLunch> listTimeSheetLunch = timeSheetLunchService.getForTimeSheetLunchByGrant(org.getId(), dateFrom);
+				int orgData = 0;
 
-				listTimeSheetLunch.removeIf(p -> !p.getStatus().equals(1) || !p.isIslunch());
-				LIST_EXTRA_RICE_ID.forEach(id ->
-						listTimeSheetLunch.removeIf(p -> p.getShifttypeid_link().equals(id)));
+				for (TimeSheetLunch tsl : rawData) {
+					if (tsl.getWorkingdate().compareTo(dateFrom) == 0 && Objects.equals(tsl.getOrgid_link(), org.getId())) orgData++;
+				}
 
-				data.put(org.getName(), listTimeSheetLunch.size());
+				data.put(org.getName(), orgData);
 			}
 
 			allData.put(dateFrom, data);
@@ -1706,17 +1790,32 @@ public class TimeSheetLunchAPI {
 		Org factory = orgService.findOne(orgIdLink);
 		List<Org> listOrg = orgService.getorgChildrenbyOrg(orgIdLink, new ArrayList<>()); // Các đơn vị trong phân xưởng
 
+		// Lấy dữ liệu giữa 2 ngày từ id của org cha
+		List<TimeSheetLunch> rawData = timeSheetLunchService.
+				getForTimeSheetLunchByManagerOrgManyDay(orgIdLink, dateFrom, dateTo);
+
+		// Lọc dữ liệu tăng ca
+		rawData.removeIf(p -> !p.getStatus().equals(1) || !p.isIslunch());
+		LIST_EXTRA_RICE_ID.forEach(id -> rawData.removeIf(p -> !p.getShifttypeid_link().equals(id)));
+
+		// Sắp xếp dữ liệu theo ngày
+		rawData.sort((o1, o2) -> {
+			if (o1.getWorkingdate().before(o2.getWorkingdate())) return -1;
+			if (o1.getWorkingdate().after(o2.getWorkingdate())) return 1;
+			return 0;
+		});
+
 		while (dateFrom.getTime() <= dateTo.getTime()) {
 			HashMap<String, Integer> data = new LinkedHashMap<>();
 
 			for (Org org : listOrg) {
-				List<TimeSheetLunch> listTimeSheetLunch = timeSheetLunchService.getForTimeSheetLunchByGrant(org.getId(), dateFrom);
+				int orgData = 0;
 
-				listTimeSheetLunch.removeIf(p -> !p.getStatus().equals(1) || !p.isIslunch());
-				LIST_EXTRA_RICE_ID.forEach(id ->
-						listTimeSheetLunch.removeIf(p -> !p.getShifttypeid_link().equals(id)));
+				for (TimeSheetLunch tsl : rawData) {
+					if (tsl.getWorkingdate().compareTo(dateFrom) == 0 && Objects.equals(tsl.getOrgid_link(), org.getId())) orgData++;
+				}
 
-				data.put(org.getName(), listTimeSheetLunch.size());
+				data.put(org.getName(), orgData);
 			}
 
 			allData.put(dateFrom, data);
